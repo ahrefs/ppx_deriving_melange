@@ -1,10 +1,15 @@
 open Fest
 
-module Cases = Ppx_deriving_melange_runtime_cases.Test_eq_cases
+module Eq_cases = Ppx_deriving_melange_runtime_cases.Test_eq_cases
+module Iter_cases = Ppx_deriving_melange_runtime_cases.Test_iter_cases
 
 let assert_bool_equal actual expected = equal expect actual expected
 
-let () =
-  Cases.all
+let run_cases deriver cases =
+  cases
   |> List.iter (fun ({ name; run } : Ppx_deriving_melange_runtime_cases.Test_case.t) ->
-    test (name ^ " runs in Melange") (fun () -> run ~assert_bool_equal))
+    test (deriver ^ " " ^ name ^ " runs in Melange") (fun () -> run ~assert_bool_equal))
+
+let () =
+  run_cases "eq" Eq_cases.all;
+  run_cases "iter" Iter_cases.all
