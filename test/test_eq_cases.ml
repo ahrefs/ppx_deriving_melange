@@ -1,8 +1,3 @@
-type test_case = {
-  name : string;
-  run : assert_bool_equal:(bool -> bool -> unit) -> unit;
-}
-
 module Variant = struct
   type t =
     | First
@@ -449,7 +444,7 @@ module Mutually_recursive = struct
     assert_bool_equal (equal string_equal value changed_location) false
 end
 
-let all =
+let all : Test_case.t list =
   [
     { name = "variant"; run = Variant.run };
     { name = "variant_payload"; run = Variant_payload.run };

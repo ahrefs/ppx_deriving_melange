@@ -1,7 +1,7 @@
 (library
  (name ppx_deriving_melange_runtime_cases)
  (modes :standard melange)
- (modules test_runtime_cases)
+ (modules test_case test_eq_cases)
  (preprocess
   (pps ppx_deriving_melange)))
 
