@@ -3,20 +3,9 @@ open Asttypes
 open Parsetree
 open Ast_helper
 open Ast_builder.Default
+open Common
 
 let deriver = "eq"
-let loc = !default_loc
-let mkloc txt loc = { txt; loc }
-let mknoloc txt = mkloc txt !default_loc
-let pvar name = Pat.var (mknoloc name)
-let lid_of_string s = mknoloc (Longident.parse s)
-
-let warning_attribute message =
-  {
-    attr_name = mkloc "ocaml.warning" loc;
-    attr_payload = PStr [ pstr_eval ~loc (estring ~loc message) [] ];
-    attr_loc = loc;
-  }
 
 let attr_equal =
   Attribute.declare "equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) (fun expr -> expr)
@@ -26,50 +15,8 @@ let attr_deriving_eq_equal =
     Ast_pattern.(single_expr_payload __)
     (fun expr -> expr)
 
-let mangle_type_decl ~prefix type_decl =
-  match type_decl.ptype_name.txt with
-  | "t" -> prefix
-  | name -> prefix ^ "_" ^ name
-
-let mangle_name ~prefix = function
-  | "t" -> prefix
-  | name -> prefix ^ "_" ^ name
-
 let equal_name type_decl = mangle_type_decl ~prefix:"equal" type_decl
-
-let core_type_of_type_decl
-  {
-    ptype_name = name;
-    ptype_params;
-    ptype_cstrs = _type_constraints;
-    ptype_kind = _type_kind;
-    ptype_private = _type_private;
-    ptype_manifest = _type_manifest;
-    ptype_attributes = _type_attributes;
-    ptype_loc = _type_loc;
-  } =
-  Typ.constr (mkloc (Lident name.txt) name.loc) (List.map fst ptype_params)
-
-let type_parameter_name typ =
-  let raise_unsupported () =
-    Location.raise_errorf ~loc:typ.ptyp_loc "deriving.eq doesn't support non-variable type parameters"
-  in
-  match typ.ptyp_desc with
-  | Ptyp_var name -> name
-  | Ptyp_any -> raise_unsupported ()
-  | Ptyp_arrow (_argument_label, _argument_type, _return_type) -> raise_unsupported ()
-  | Ptyp_tuple _tuple_types -> raise_unsupported ()
-  | Ptyp_constr (_type_path, _type_args) -> raise_unsupported ()
-  | Ptyp_object (_object_fields, _object_closed_flag) -> raise_unsupported ()
-  | Ptyp_class (_class_path, _class_type_args) -> raise_unsupported ()
-  | Ptyp_alias (_aliased_type, _alias_name) -> raise_unsupported ()
-  | Ptyp_variant (_variant_fields, _variant_closed_flag, _variant_labels) -> raise_unsupported ()
-  | Ptyp_poly (_type_variables, _body_type) -> raise_unsupported ()
-  | Ptyp_package _package_type -> raise_unsupported ()
-  | Ptyp_extension _extension -> raise_unsupported ()
-  | Ptyp_open (_open_declaration, _opened_type) -> raise_unsupported ()
-
-let type_parameter_equal_name typ = "poly_" ^ type_parameter_name typ
+let type_parameter_equal_name typ = "poly_" ^ type_parameter_name ~deriver typ
 
 let equality_type typ =
   let loc = typ.ptyp_loc in
@@ -82,18 +29,6 @@ let type_of_decl type_decl =
   List.fold_right
     (fun (type_param, _variance_and_injectivity) acc -> Typ.arrow Nolabel (equality_type type_param) acc)
     type_decl.ptype_params base_type
-
-let map_last_lid f = function
-  | Lident name -> Lident (f name)
-  | Ldot (path, name) -> Ldot (path, f name)
-  | Lapply (left, right) -> Lapply (left, right)
-
-let mangle_lid ~prefix lid = map_last_lid (mangle_name ~prefix) lid
-
-let rec has_functor_application = function
-  | Lident _name -> false
-  | Ldot (path, _name) -> has_functor_application path
-  | Lapply (_left, _right) -> true
 
 let primitive_equal typ = [%expr fun (a : [%t typ]) b -> a = b]
 
@@ -109,17 +44,6 @@ let fold_comparisons comparisons =
   match comparisons with
   | [] -> [%expr true]
   | first :: rest -> List.fold_left (fun acc expr -> [%expr [%e acc] && [%e expr]]) first rest
-
-let tuple_bindings prefix tuple_types =
-  let patterns, expressions =
-    List.mapi
-      (fun i _tuple_type ->
-        let name = prefix ^ string_of_int i in
-        pvar name, Exp.ident (lid_of_string name))
-      tuple_types
-    |> List.split
-  in
-  Pat.tuple patterns, expressions
 
 let rec list_equal element_typ =
   let element_equal = equal_expr_of_core_type element_typ in
@@ -270,28 +194,9 @@ and polyvariant_equal fields =
   in
   [%expr fun lhs rhs -> [%e Exp.match_ [%expr lhs, rhs] (true_cases @ false_cases)]]
 
-let constructor_pattern name payload = Pat.construct (lid_of_string name) payload
-
-let payload_pattern prefix payload_types =
-  match payload_types with
-  | [] -> None
-  | [ _ ] -> Some (pvar (prefix ^ "0"))
-  | _ -> Some (Pat.tuple (List.mapi (fun i _typ -> pvar (prefix ^ string_of_int i)) payload_types))
-
 let constructor_case_pattern name payload_types =
   ( constructor_pattern name (payload_pattern "a" payload_types),
     constructor_pattern name (payload_pattern "b" payload_types) )
-
-let record_payload_pattern prefix fields =
-  let field_patterns =
-    List.map
-      (fun field_decl ->
-        let field_name = field_decl.pld_name in
-        let field_lid = mkloc (Lident field_name.txt) field_name.loc in
-        field_lid, pvar (prefix ^ field_name.txt))
-      fields
-  in
-  Pat.record field_patterns Closed
 
 let record_payload_case_pattern name fields =
   ( constructor_pattern name (Some (record_payload_pattern "a_" fields)),
