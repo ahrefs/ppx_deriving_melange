@@ -57,13 +57,6 @@ let type_parameter_name ~deriver typ =
   | Ptyp_extension _extension -> raise_unsupported ()
   | Ptyp_open (_open_declaration, _opened_type) -> raise_unsupported ()
 
-let map_last_lid f = function
-  | Lident name -> Lident (f name)
-  | Ldot (path, name) -> Ldot (path, f name)
-  | Lapply (left, right) -> Lapply (left, right)
-
-let mangle_lid ~prefix lid = map_last_lid (mangle_name ~prefix) lid
-
 let rec has_functor_application = function
   | Lident _name -> false
   | Ldot (path, _name) -> has_functor_application path

@@ -21,10 +21,12 @@ let type_of_decl type_decl =
     (fun (type_param, _variance_and_injectivity) acc -> Typ.arrow Nolabel (iteration_type type_param) acc)
     type_decl.ptype_params base_type
 
-let iter_expr_of_payload_lid loc = function
+let iter_expr_of_payload_lid loc typ = function
   | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"iter" name)) loc)
   | Ldot (path, name) -> Exp.ident (mkloc (Ldot (path, mangle_name ~prefix:"iter" name)) loc)
-  | Lapply (left, right) -> Exp.ident (mkloc (mangle_lid ~prefix:"iter" (Lapply (left, right))) loc)
+  | Lapply (_left_path, _right_path) ->
+    (* Unreachable: functor-applied paths are rejected in iter_expr_of_type_constructor. *)
+    Location.raise_errorf ~loc "deriving.iter doesn't support payload type %s" (string_of_core_type typ)
 
 let sequence_iterations iterations =
   match iterations with
@@ -68,14 +70,14 @@ and iter_expr_of_type_constructor loc typ type_path type_args =
   | false, Lident "result", [ ok_typ; error_typ ] -> result_iter ok_typ error_typ
   | false, Lident _type_name, _first_type_arg :: _remaining_type_args ->
     Exp.apply
-      (iter_expr_of_payload_lid loc type_path)
+      (iter_expr_of_payload_lid loc typ type_path)
       (List.map (fun type_arg -> Nolabel, iter_expr_of_core_type type_arg) type_args)
-  | false, Lident _type_name, [] -> iter_expr_of_payload_lid loc type_path
+  | false, Lident _type_name, [] -> iter_expr_of_payload_lid loc typ type_path
   | false, Ldot (_parent_path, _type_name), _first_type_arg :: _remaining_type_args ->
     Exp.apply
-      (iter_expr_of_payload_lid loc type_path)
+      (iter_expr_of_payload_lid loc typ type_path)
       (List.map (fun type_arg -> Nolabel, iter_expr_of_core_type type_arg) type_args)
-  | false, Ldot (_parent_path, _type_name), [] -> iter_expr_of_payload_lid loc type_path
+  | false, Ldot (_parent_path, _type_name), [] -> iter_expr_of_payload_lid loc typ type_path
   | false, Lapply (_left_path, _right_path), _type_args -> raise_unsupported typ
 
 and list_iter element_typ =

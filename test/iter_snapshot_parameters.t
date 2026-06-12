@@ -82,9 +82,45 @@ application references `Box.iter`, a monomorphic one collapses to a no-op.
     let _ = iter_fixed
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
 
-Unsupported functor-applied type paths produce a clear error (a type variable
-is required to reach the check: monomorphic functor paths collapse to a no-op
-first, as native ppx_deriving.iter does).
+A monomorphic functor-applied path has no type variables, so it collapses to
+the no-op before the functor check fires, as native ppx_deriving.iter does.
+
+  $ cat > input.ml <<'EOF'
+  > module Arg = struct
+  >   let offset = 10
+  > end
+  > 
+  > module Make (Input : sig
+  >   val offset : int
+  > end) = struct
+  >   type 'a t = T of 'a
+  > end
+  > 
+  > type t = Make(Arg).t [@@deriving iter]
+  > EOF
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  module Arg = struct
+    let offset = 10
+  end
+  
+  module Make (Input : sig
+    val offset : int
+  end) =
+  struct
+    type 'a t = T of 'a
+  end
+  
+  type t = Make(Arg).t [@@deriving iter]
+  
+  include struct
+    let _ = fun (_ : t) -> ()
+    let rec iter : t -> unit = fun _ -> () [@@ocaml.warning "-39"]
+    let _ = iter
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+
+Functor-applied type paths that are actually reached (a type variable forces
+traversal) produce a clear error.
 
   $ cat > input.ml <<'EOF'
   > module Arg = struct
