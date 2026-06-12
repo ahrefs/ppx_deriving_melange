@@ -129,6 +129,42 @@ module Two_parameters = struct
     assert_bool_equal (List.rev !strings = [ "a"; "b" ]) true
 end
 
+module Two_parameter_record = struct
+  type ('a, 'b) t = {
+    first : 'a;
+    second : 'b;
+  }
+  [@@deriving iter]
+
+  (* Mirrors the native ppx_deriving regression test for issue #82: each field
+     must be visited by the callback matching its own type parameter, in
+     declaration order. *)
+  let run ~assert_bool_equal =
+    let collected = ref [] in
+    iter
+      (fun a -> collected := ("a:" ^ string_of_int a) :: !collected)
+      (fun b -> collected := ("b:" ^ b) :: !collected)
+      { first = 1; second = "x" };
+    assert_bool_equal (List.rev !collected = [ "a:1"; "b:x" ]) true
+end
+
+module Recursive_record_payload = struct
+  type 'a t =
+    | Leaf
+    | Node of {
+        left : 'a t;
+        value : 'a;
+        right : 'a t;
+      }
+  [@@deriving iter]
+
+  let run ~assert_bool_equal =
+    let collected = ref [] in
+    let tree = Node { left = Node { left = Leaf; value = 1; right = Leaf }; value = 2; right = Leaf } in
+    iter (fun v -> collected := v :: !collected) tree;
+    assert_bool_equal (List.rev !collected = [ 1; 2 ]) true
+end
+
 module Phantom_parameter = struct
   type 'a t = Id of int [@@deriving iter]
 
@@ -217,6 +253,8 @@ let all : Test_case.t list =
     { name = "recursive_tree"; run = Recursive_tree.run };
     { name = "mutually_recursive"; run = Mutually_recursive.run };
     { name = "two_parameters"; run = Two_parameters.run };
+    { name = "two_parameter_record"; run = Two_parameter_record.run };
+    { name = "recursive_record_payload"; run = Recursive_record_payload.run };
     { name = "phantom_parameter"; run = Phantom_parameter.run };
     { name = "monomorphic_noop"; run = Monomorphic_noop.run };
     { name = "generic_application"; run = Generic_application.run };

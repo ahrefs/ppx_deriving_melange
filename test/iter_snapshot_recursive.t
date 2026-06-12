@@ -27,6 +27,40 @@ Snapshot generated code for a recursive type.
     let _ = iter_tree
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
 
+Snapshot generated code for a recursive type with an inline record payload.
+
+  $ cat > input.ml <<'EOF'
+  > type 'a t =
+  >   | Leaf
+  >   | Node of {
+  >       left : 'a t;
+  >       value : 'a;
+  >       right : 'a t;
+  >     }
+  > [@@deriving iter]
+  > EOF
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  type 'a t = Leaf | Node of { left : 'a t; value : 'a; right : 'a t }
+  [@@deriving iter]
+  
+  include struct
+    let _ = fun (_ : 'a t) -> ()
+  
+    let rec iter : ('a -> unit) -> 'a t -> unit =
+     fun poly_a ->
+      fun x ->
+       match x with
+       | Leaf -> ()
+       | Node { left = a_left; value = a_value; right = a_right } ->
+           (iter poly_a) a_left;
+           poly_a a_value;
+           (iter poly_a) a_right
+    [@@ocaml.warning "-39"]
+  
+    let _ = iter
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+
 Snapshot generated code for a mutually recursive type group.
 
   $ cat > input.ml <<'EOF'
