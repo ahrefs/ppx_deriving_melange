@@ -27,6 +27,20 @@ Snapshot generated code for a closed polymorphic variant.
     let _ = iter
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
 
+Polymorphic variant cases with multiple payloads cannot be derived (a type
+variable is required to reach the check: a monomorphic case collapses to the
+no-op first).
+
+  $ cat > input.ml <<'EOF'
+  > type 'a t = [ `Pair of 'a & string ] [@@deriving iter]
+  > EOF
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  File "input.ml", line 1, characters 14-34:
+  1 | type 'a t = [ `Pair of 'a & string ] [@@deriving iter]
+                    ^^^^^^^^^^^^^^^^^^^^
+  Error: deriving.iter cannot be derived for polymorphic variant cases with multiple payloads
+  [1]
+
 Inherited polymorphic variant rows produce a clear error.
 
   $ cat > input.ml <<'EOF'

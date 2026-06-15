@@ -118,12 +118,13 @@ and tuple_iter tuple_types =
 and raise_unsupported_polyvariant_rtag ~loc ~is_constant ~payload_types =
   match is_constant, payload_types with
   | false, _first_payload :: _second_payload :: _remaining_payloads ->
-    Location.raise_errorf ~loc "deriving.iter doesn't support polymorphic variant cases with multiple payloads"
+    Location.raise_errorf ~loc "deriving.iter cannot be derived for polymorphic variant cases with multiple payloads"
   | true, _unexpected_payloads ->
-    Location.raise_errorf ~loc "deriving.iter doesn't support malformed constant polymorphic variant payloads"
-  | false, [] -> Location.raise_errorf ~loc "deriving.iter doesn't support empty polymorphic variant payload cases"
+    Location.raise_errorf ~loc "deriving.iter cannot be derived for malformed constant polymorphic variant payloads"
+  | false, [] ->
+    Location.raise_errorf ~loc "deriving.iter cannot be derived for empty polymorphic variant payload cases"
   | false, [ _single_payload ] ->
-    Location.raise_errorf ~loc "deriving.iter doesn't support this polymorphic variant case"
+    Location.raise_errorf ~loc "deriving.iter cannot be derived for this polymorphic variant case"
 
 and raise_unsupported_polyvariant_inherit ~loc =
   Location.raise_errorf ~loc "deriving.iter doesn't support inherited polymorphic variant rows"
