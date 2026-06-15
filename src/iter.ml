@@ -25,7 +25,8 @@ let iter_expr_of_payload_lid loc typ = function
   | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"iter" name)) loc)
   | Ldot (path, name) -> Exp.ident (mkloc (Ldot (path, mangle_name ~prefix:"iter" name)) loc)
   | Lapply (_left_path, _right_path) ->
-    (* Unreachable: functor-applied paths are rejected in iter_expr_of_type_constructor. *)
+    (* Unreachable: functor-applied paths are rejected in iter_expr_of_type_constructor.
+       The functor-path error is covered by test/iter_snapshot_parameters.t. *)
     Location.raise_errorf ~loc "deriving.iter doesn't support payload type %s" (string_of_core_type typ)
 
 let sequence_iterations iterations =

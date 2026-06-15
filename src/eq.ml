@@ -39,7 +39,8 @@ let equal_expr_of_payload_lid loc typ = function
   | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"equal" name)) loc)
   | Ldot (path, name) -> Exp.ident (mkloc (Ldot (path, mangle_name ~prefix:"equal" name)) loc)
   | Lapply (_left_path, _right_path) ->
-    (* Unreachable: functor-applied paths are rejected in equal_expr_of_type_constructor. *)
+    (* Unreachable: functor-applied paths are rejected in equal_expr_of_type_constructor.
+       The functor-path error is covered by test/eq_snapshot_parameters.t. *)
     Location.raise_errorf ~loc "deriving.eq doesn't support payload type %s" (string_of_core_type typ)
 
 let fold_comparisons comparisons =
