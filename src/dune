@@ -2,7 +2,7 @@
  (name ppx_deriving_melange)
  (public_name ppx_deriving_melange)
  (synopsis "Melange-compatible deriving plugins for OCaml")
- (modules common eq iter)
+ (modules common eq iter ord)
  (preprocess
   (pps ppxlib.metaquot))
  (libraries ppxlib ppxlib.astlib)

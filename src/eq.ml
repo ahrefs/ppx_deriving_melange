@@ -7,13 +7,10 @@ open Common
 
 let deriver = "eq"
 
-let attr_equal =
-  Attribute.declare "equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) (fun expr -> expr)
+let attr_equal = Attribute.declare "equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
 
 let attr_deriving_eq_equal =
-  Attribute.declare "deriving.eq.equal" Attribute.Context.core_type
-    Ast_pattern.(single_expr_payload __)
-    (fun expr -> expr)
+  Attribute.declare "deriving.eq.equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
 
 let equal_name type_decl = mangle_type_decl ~prefix:"equal" type_decl
 let type_parameter_equal_name typ = "poly_" ^ type_parameter_name ~deriver typ
@@ -33,7 +30,7 @@ let type_of_decl type_decl =
 let primitive_equal typ = [%expr fun (a : [%t typ]) b -> a = b]
 
 let equal_expr_of_payload_lid loc typ = function
-  | Lident ("string" | "int" | "bool" | "float" | "char" | "int32" | "int64" | "bytes") -> primitive_equal typ
+  | Lident ("string" | "int" | "bool" | "float" | "char" | "int32" | "int64" | "bytes" | "unit") -> primitive_equal typ
   | Ldot (Lident "Int32", "t") -> primitive_equal typ
   | Ldot (Lident "Int64", "t") -> primitive_equal typ
   | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"equal" name)) loc)
