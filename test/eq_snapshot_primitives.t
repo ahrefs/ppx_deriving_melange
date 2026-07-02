@@ -12,12 +12,14 @@ Snapshot generated code for primitive payloads and aliases.
   >   | QualifiedInt32Payload of Int32.t
   >   | Int64Payload of int64
   >   | QualifiedInt64Payload of Int64.t
+  >   | UnitPayload of unit
   > [@@deriving eq]
   > 
   > type int_alias = int [@@deriving eq]
   > type int32_alias = int32 [@@deriving eq]
   > type bytes_alias = bytes [@@deriving eq]
   > type string_alias = string [@@deriving eq]
+  > type unit_alias = unit [@@deriving eq]
   > EOF
   $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
   $ ocamlformat --enable-outside-detected-project --impl output.ml
@@ -32,6 +34,7 @@ Snapshot generated code for primitive payloads and aliases.
     | QualifiedInt32Payload of Int32.t
     | Int64Payload of int64
     | QualifiedInt64Payload of Int64.t
+    | UnitPayload of unit
   [@@deriving eq]
   
   include struct
@@ -54,6 +57,7 @@ Snapshot generated code for primitive payloads and aliases.
        | Int64Payload a0, Int64Payload b0 -> (fun (a : int64) b -> a = b) a0 b0
        | QualifiedInt64Payload a0, QualifiedInt64Payload b0 ->
            (fun (a : Int64.t) b -> a = b) a0 b0
+       | UnitPayload a0, UnitPayload b0 -> (fun (a : unit) b -> a = b) a0 b0
        | StringPayload _0, _ -> false
        | IntPayload _0, _ -> false
        | BoolPayload _0, _ -> false
@@ -64,6 +68,7 @@ Snapshot generated code for primitive payloads and aliases.
        | QualifiedInt32Payload _0, _ -> false
        | Int64Payload _0, _ -> false
        | QualifiedInt64Payload _0, _ -> false
+       | UnitPayload _0, _ -> false
     [@@ocaml.warning "-39"]
   
     let _ = equal_primitive_payload
@@ -115,4 +120,16 @@ Snapshot generated code for primitive payloads and aliases.
     [@@ocaml.warning "-39"]
   
     let _ = equal_string_alias
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+  
+  type unit_alias = unit [@@deriving eq]
+  
+  include struct
+    let _ = fun (_ : unit_alias) -> ()
+  
+    let rec equal_unit_alias : unit_alias -> unit_alias -> bool =
+     fun (a : unit) b -> a = b
+    [@@ocaml.warning "-39"]
+  
+    let _ = equal_unit_alias
   end [@@ocaml.doc "@inline"] [@@merlin.hide]

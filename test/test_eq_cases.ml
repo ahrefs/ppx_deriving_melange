@@ -36,9 +36,11 @@ module Primitive_payloads = struct
     | QualifiedInt32Payload of Int32.t
     | Int64Payload of int64
     | QualifiedInt64Payload of Int64.t
+    | UnitPayload of unit
   [@@deriving eq]
 
   let run ~assert_bool_equal =
+    assert_bool_equal (equal (UnitPayload ()) (UnitPayload ())) true;
     assert_bool_equal (equal (StringPayload "a") (StringPayload "a")) true;
     assert_bool_equal (equal (IntPayload 1) (IntPayload 1)) true;
     assert_bool_equal (equal (BoolPayload true) (BoolPayload true)) true;
@@ -63,8 +65,10 @@ module Primitive_aliases = struct
   type qualified_int32_alias = Int32.t [@@deriving eq]
   type int64_alias = int64 [@@deriving eq]
   type qualified_int64_alias = Int64.t [@@deriving eq]
+  type unit_alias = unit [@@deriving eq]
 
   let run ~assert_bool_equal =
+    assert_bool_equal (equal_unit_alias () ()) true;
     assert_bool_equal (equal_string_alias "a" "a") true;
     assert_bool_equal (equal_int_alias 1 1) true;
     assert_bool_equal (equal_bool_alias true true) true;

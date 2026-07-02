@@ -3,7 +3,7 @@
 `ppx_deriving_melange` is intended to be a Melange-compatible subset of
 `ppx_deriving`.
 
-Supported derivers: `eq` and `iter`.
+Supported derivers: `eq`, `iter`, and `ord`.
 
 ## eq
 
@@ -38,7 +38,7 @@ The initial version supports classic variants with:
 
 - constructors without payloads
 - tuple payload constructors
-- primitive payloads: `string`, `int`, `bool`, `float`, `char`, `bytes`, `int32`, `Int32.t`, `int64`, and `Int64.t`
+- primitive payloads: `string`, `int`, `bool`, `float`, `char`, `bytes`, `int32`, `Int32.t`, `int64`, `Int64.t`, and `unit`
 - list payloads, e.g. `string list` and `Foo.t list`
 - option payloads, e.g. `string option` and `Foo.t option`
 - array payloads, e.g. `string array` and `Foo.t array`
@@ -116,10 +116,62 @@ polymorphic variant row inheritance are rejected with a clear error when they
 are reached; monomorphic occurrences collapse to the no-op first, as in native
 `ppx_deriving`.
 
+## ord
+
+`ord` generates a `compare` function — the same convention native
+`ppx_deriving.ord` uses, so the result drops straight into `Map.Make` /
+`Set.Make` and `List.sort`:
+
+```ocaml
+type t =
+  | Red
+  | Green
+  | Blue
+[@@deriving ord]
+```
+
+This generates:
+
+```ocaml
+val compare : t -> t -> int
+```
+
+Note the function is named `compare`, not `ord`: `type t` generates `compare`,
+`type status` generates `compare_status`, and a reference to `Foo.t` uses
+`Foo.compare`. Parameterized types take a comparison callback per type
+parameter, e.g. `val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int`.
+
+### ord semantics
+
+Comparison matches native `ppx_deriving.ord`:
+
+- variants and polymorphic variants are ordered by declaration order; within the
+  same constructor, payloads are compared lexicographically
+- records and tuples compare fields/elements lexicographically in declaration
+  order
+- `None < Some _`; `Ok _ < Error _`
+- lists compare element-by-element (a prefix is smaller); arrays compare by
+  length first, then elements
+- primitives use a typed `Stdlib.compare`
+
+### ord scope
+
+`ord` supports the same shapes as `eq` (variants with tuple and inline-record
+payloads, records, tuples, simple aliases, type parameters, generic type
+applications, recursive type groups, closed polymorphic variants, and `list`,
+`option`, `array`, `result`, and `unit`). Custom comparison can be provided on a
+payload or field type with `[@compare ...]`; for compatibility with native
+`ppx_deriving.ord`, the namespaced form `[@deriving.ord.compare ...]` is also
+accepted.
+
+As with `eq` and `iter`, `ref`, `lazy_t`, `nativeint`, functor-applied type
+paths, and polymorphic variant row inheritance are rejected with a clear error
+(native `ppx_deriving.ord` supports these, but they are out of scope here).
+
 ## Unsupported for now
 
 - polymorphic variant row inheritance
-- `ord`, `enum`, `show`, and the rest of `ppx_deriving.std`
+- `enum`, `show`, and the rest of `ppx_deriving.std`
 
 ## Roadmap From `ppx_deriving`
 
