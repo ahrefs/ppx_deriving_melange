@@ -84,7 +84,10 @@ Snapshot generated code for a generic type application.
   
   include struct
     let _ = fun (_ : t) -> ()
-    let rec equal : t -> t -> bool = Box.equal Item.equal [@@ocaml.warning "-39"]
+  
+    let rec equal : t -> t -> bool = fun a b -> (Box.equal Item.equal) a b
+    [@@ocaml.warning "-39"]
+  
     let _ = equal
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
 
@@ -120,12 +123,14 @@ Snapshot generated code for a generic type application with a tuple type argumen
     let _ = fun (_ : t) -> ()
   
     let rec equal : t -> t -> bool =
-      Box.equal (fun left ->
-          fun right ->
-           match (left, right) with
-           | (left0, left1), (right0, right1) ->
-               (fun (a : int) b -> a = b) left0 right0
-               && (fun (a : string) b -> a = b) left1 right1)
+     fun a b ->
+      (Box.equal (fun left ->
+           fun right ->
+            match (left, right) with
+            | (left0, left1), (right0, right1) ->
+                (fun (a : int) b -> a = b) left0 right0
+                && (fun (a : string) b -> a = b) left1 right1))
+        a b
     [@@ocaml.warning "-39"]
   
     let _ = equal

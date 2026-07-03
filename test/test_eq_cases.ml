@@ -448,6 +448,46 @@ module Mutually_recursive = struct
     assert_bool_equal (equal string_equal value changed_location) false
 end
 
+module Alias_to_type_variable = struct
+  type poly_app = float poly_abs
+  and 'a poly_abs = 'a [@@deriving eq]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (equal_poly_app 1.0 1.0) true;
+    assert_bool_equal (equal_poly_app 1.0 2.0) false
+end
+
+module Recursive_group_alias = struct
+  type a =
+    | A
+    | B
+
+  and b = a [@@deriving eq]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (equal_b A A) true;
+    assert_bool_equal (equal_b A B) false
+end
+
+module Generic_application_alias = struct
+  module Box = struct
+    type 'a t = Box of 'a [@@deriving eq]
+  end
+
+  module Item = struct
+    type t =
+      | A
+      | B
+    [@@deriving eq]
+  end
+
+  type t = Item.t Box.t [@@deriving eq]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (equal (Box.Box Item.A) (Box.Box Item.A)) true;
+    assert_bool_equal (equal (Box.Box Item.A) (Box.Box Item.B)) false
+end
+
 let all : Test_case.t list =
   [
     { name = "variant"; run = Variant.run };
@@ -474,4 +514,7 @@ let all : Test_case.t list =
     { name = "phantom_parameter"; run = Phantom_parameter.run };
     { name = "generic_application"; run = Generic_application.run };
     { name = "mutually_recursive"; run = Mutually_recursive.run };
+    { name = "alias_to_type_variable"; run = Alias_to_type_variable.run };
+    { name = "recursive_group_alias"; run = Recursive_group_alias.run };
+    { name = "generic_application_alias"; run = Generic_application_alias.run };
   ]

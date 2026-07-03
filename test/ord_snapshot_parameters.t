@@ -138,7 +138,7 @@ Snapshot generated code for a generic type application.
   include struct
     let _ = fun (_ : t) -> ()
   
-    let rec compare : t -> t -> int = Box.compare Item.compare
+    let rec compare : t -> t -> int = fun a b -> (Box.compare Item.compare) a b
     [@@ocaml.warning "-39"]
   
     let _ = compare

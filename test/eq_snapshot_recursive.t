@@ -85,3 +85,59 @@ Unsupported mutually recursive type groups report the unsupported member payload
                                ^^^^^^^^^^
   Error: deriving.eq doesn't support payload type int -> int
   [1]
+
+An alias whose equality references a function from the same recursive binding
+group is eta-expanded: a bare application or reference is not a valid let-rec
+right-hand side.
+
+  $ cat > input.ml <<'EOF2'
+  > type poly_app = float poly_abs
+  > and 'a poly_abs = 'a [@@deriving eq]
+  > 
+  > type a = A | B
+  > and b = a [@@deriving eq]
+  > EOF2
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  type poly_app = float poly_abs
+  and 'a poly_abs = 'a [@@deriving eq]
+  
+  include struct
+    let _ = fun (_ : poly_app) -> ()
+    let _ = fun (_ : 'a poly_abs) -> ()
+  
+    let rec equal_poly_app : poly_app -> poly_app -> bool =
+     fun a b -> (equal_poly_abs (fun (a : float) b -> a = b)) a b
+    [@@ocaml.warning "-39"]
+  
+    and equal_poly_abs : ('a -> 'a -> bool) -> 'a poly_abs -> 'a poly_abs -> bool
+        =
+     fun poly_a -> fun a b -> poly_a a b
+    [@@ocaml.warning "-39"]
+  
+    let _ = equal_poly_app
+    and _ = equal_poly_abs
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+  
+  type a = A | B
+  and b = a [@@deriving eq]
+  
+  include struct
+    let _ = fun (_ : a) -> ()
+    let _ = fun (_ : b) -> ()
+  
+    let rec equal_a : a -> a -> bool =
+     fun a ->
+      fun b ->
+       match (a, b) with
+       | A, A -> true
+       | B, B -> true
+       | A, _ -> false
+       | B, _ -> false
+    [@@ocaml.warning "-39"]
+  
+    and equal_b : b -> b -> bool = fun a b -> equal_a a b [@@ocaml.warning "-39"]
+  
+    let _ = equal_a
+    and _ = equal_b
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
