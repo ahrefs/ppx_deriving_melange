@@ -110,3 +110,53 @@ Snapshot generated code for a mutually recursive type group.
     and _ = iter_rule_group
     and _ = iter
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
+
+iter needs no eta-expansion for same-group aliases: a monomorphic alias
+collapses to the no-op lambda, and a parameterized alias is wrapped by its
+type-parameter callbacks.
+
+  $ cat > input.ml <<'EOF2'
+  > type a = A of int
+  > and b = a [@@deriving iter]
+  > 
+  > type 'a pair = 'a * 'a
+  > and 'a t = 'a pair [@@deriving iter]
+  > EOF2
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  type a = A of int
+  and b = a [@@deriving iter]
+  
+  include struct
+    let _ = fun (_ : a) -> ()
+    let _ = fun (_ : b) -> ()
+  
+    let rec iter_a : a -> unit = fun x -> match x with A a0 -> (fun _ -> ()) a0
+    [@@ocaml.warning "-39"]
+  
+    and iter_b : b -> unit = fun _ -> () [@@ocaml.warning "-39"]
+  
+    let _ = iter_a
+    and _ = iter_b
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+  
+  type 'a pair = 'a * 'a
+  and 'a t = 'a pair [@@deriving iter]
+  
+  include struct
+    let _ = fun (_ : 'a pair) -> ()
+    let _ = fun (_ : 'a t) -> ()
+  
+    let rec iter_pair : ('a -> unit) -> 'a pair -> unit =
+     fun poly_a ->
+      fun (a0, a1) ->
+       poly_a a0;
+       poly_a a1
+    [@@ocaml.warning "-39"]
+  
+    and iter : ('a -> unit) -> 'a t -> unit = fun poly_a -> iter_pair poly_a
+    [@@ocaml.warning "-39"]
+  
+    let _ = iter_pair
+    and _ = iter
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]

@@ -225,6 +225,46 @@ module Module_signature = struct
     assert_bool_equal (M.compare M.A M.B < 0) true
 end
 
+module Alias_to_type_variable = struct
+  type poly_app = float poly_abs
+  and 'a poly_abs = 'a [@@deriving ord]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (compare_poly_app 1.0 1.0 = 0) true;
+    assert_bool_equal (compare_poly_app 1.0 2.0 < 0) true
+end
+
+module Recursive_group_alias = struct
+  type a =
+    | Small
+    | Large
+
+  and b = a [@@deriving ord]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (compare_b Small Small = 0) true;
+    assert_bool_equal (compare_b Small Large < 0) true
+end
+
+module Generic_application_alias = struct
+  module Box = struct
+    type 'a t = Box of 'a [@@deriving ord]
+  end
+
+  module Item = struct
+    type t =
+      | A
+      | B
+    [@@deriving ord]
+  end
+
+  type t = Item.t Box.t [@@deriving ord]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (compare (Box.Box Item.A) (Box.Box Item.A) = 0) true;
+    assert_bool_equal (compare (Box.Box Item.A) (Box.Box Item.B) < 0) true
+end
+
 let all : Test_case.t list =
   [
     { name = "variant_ordering"; run = Variant_ordering.run };
@@ -243,4 +283,7 @@ let all : Test_case.t list =
     { name = "custom_compare"; run = Custom_compare.run };
     { name = "status_naming"; run = Status_naming.run };
     { name = "module_signature"; run = Module_signature.run };
+    { name = "alias_to_type_variable"; run = Alias_to_type_variable.run };
+    { name = "recursive_group_alias"; run = Recursive_group_alias.run };
+    { name = "generic_application_alias"; run = Generic_application_alias.run };
   ]

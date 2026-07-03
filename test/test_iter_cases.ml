@@ -243,6 +243,26 @@ module Module_signature = struct
     assert_bool_equal (!collected = [ 4 ]) true
 end
 
+module Recursive_group_alias = struct
+  type 'a pair = 'a * 'a
+  and 'a t = 'a pair [@@deriving iter]
+
+  let run ~assert_bool_equal =
+    let count = ref 0 in
+    iter (fun _element -> incr count) (1, 2);
+    assert_bool_equal (!count = 2) true
+end
+
+module Monomorphic_group_alias = struct
+  type a = A of int
+  and b = a [@@deriving iter]
+
+  let run ~assert_bool_equal =
+    (* iter_b is the no-op: it must exist and do nothing *)
+    iter_b (A 1);
+    assert_bool_equal true true
+end
+
 let all : Test_case.t list =
   [
     { name = "parameterized_variant"; run = Parameterized_variant.run };
@@ -261,4 +281,6 @@ let all : Test_case.t list =
     { name = "polymorphic_variant"; run = Polymorphic_variant.run };
     { name = "status_naming"; run = Status_naming.run };
     { name = "module_signature"; run = Module_signature.run };
+    { name = "recursive_group_alias"; run = Recursive_group_alias.run };
+    { name = "monomorphic_group_alias"; run = Monomorphic_group_alias.run };
   ]

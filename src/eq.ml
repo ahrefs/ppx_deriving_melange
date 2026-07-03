@@ -277,6 +277,12 @@ let expr_of_variant constructors =
   Exp.fun_ Nolabel None (pvar "a")
     (Exp.fun_ Nolabel None (pvar "b") (Exp.match_ [%expr a, b] (true_cases @ false_cases)))
 
+(* Aliases whose equality is not already a lambda (type b = a, type t = float
+   poly_abs) are eta-expanded so the binding stays a valid let-rec right-hand
+   side. *)
+let eta_expand_equality equal_expr =
+  if is_syntactic_function equal_expr then equal_expr else [%expr fun a b -> [%e equal_expr] a b]
+
 let str_of_type ~deriver
   ({
      ptype_name = _type_name;
@@ -293,7 +299,7 @@ let str_of_type ~deriver
     | Ptype_variant constructors, _type_manifest -> expr_of_variant constructors
     | Ptype_record record_fields, _type_manifest -> expr_of_record record_fields
     | Ptype_abstract, None -> Location.raise_errorf ~loc "deriving.%s doesn't support abstract types" deriver
-    | Ptype_abstract, Some manifest_type -> equal_expr_of_core_type manifest_type
+    | Ptype_abstract, Some manifest_type -> eta_expand_equality (equal_expr_of_core_type manifest_type)
     | Ptype_open, _type_manifest -> Location.raise_errorf ~loc "deriving.%s doesn't support open types" deriver
   in
   let equal_exp =

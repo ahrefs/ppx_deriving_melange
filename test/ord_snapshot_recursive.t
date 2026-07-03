@@ -115,3 +115,61 @@ Snapshot generated code for a mutually recursive type group.
     and _ = compare_rule_group
     and _ = compare
   end [@@ocaml.doc "@inline"] [@@merlin.hide]
+
+An alias whose comparison references a function from the same recursive binding
+group is eta-expanded: a bare application or reference is not a valid let-rec
+right-hand side.
+
+  $ cat > input.ml <<'EOF2'
+  > type poly_app = float poly_abs
+  > and 'a poly_abs = 'a [@@deriving ord]
+  > 
+  > type a = A | B
+  > and b = a [@@deriving ord]
+  > EOF2
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  type poly_app = float poly_abs
+  and 'a poly_abs = 'a [@@deriving ord]
+  
+  include struct
+    let _ = fun (_ : poly_app) -> ()
+    let _ = fun (_ : 'a poly_abs) -> ()
+  
+    let rec compare_poly_app : poly_app -> poly_app -> int =
+     fun a b -> (compare_poly_abs (fun (a : float) b -> Stdlib.compare a b)) a b
+    [@@ocaml.warning "-39"]
+  
+    and compare_poly_abs : ('a -> 'a -> int) -> 'a poly_abs -> 'a poly_abs -> int
+        =
+     fun poly_a -> fun a b -> poly_a a b
+    [@@ocaml.warning "-39"]
+  
+    let _ = compare_poly_app
+    and _ = compare_poly_abs
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
+  
+  type a = A | B
+  and b = a [@@deriving ord]
+  
+  include struct
+    let _ = fun (_ : a) -> ()
+    let _ = fun (_ : b) -> ()
+  
+    let rec compare_a : a -> a -> int =
+     fun a ->
+      fun b ->
+       match (a, b) with
+       | A, A -> 0
+       | B, B -> 0
+       | _ ->
+           let to_int value = match value with A -> 0 | B -> 1 in
+           Stdlib.compare (to_int a) (to_int b)
+    [@@ocaml.warning "-39"]
+  
+    and compare_b : b -> b -> int = fun a b -> compare_a a b
+    [@@ocaml.warning "-39"]
+  
+    let _ = compare_a
+    and _ = compare_b
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]
