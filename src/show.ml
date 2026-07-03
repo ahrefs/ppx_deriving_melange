@@ -381,14 +381,11 @@ let expr_of_record ~with_path ~path fields =
   Exp.fun_ Nolabel None (pvar "fmt")
     (Exp.fun_ Nolabel None (pvar "x") (print_between ~before:"@[<2>{ " ~sep:";@ " ~after:"@ }@]" field_printers))
 
-(* A let-rec right-hand side must be a lambda: an alias whose printer is a bare
-   reference or application (Foo.pp, pp_foo poly_a, poly_a) is eta-expanded.
-   Printers that are already syntactic functions are left as-is to keep the
-   generated code readable. *)
+(* Aliases whose printer is not already a lambda (Foo.pp, pp_foo poly_a,
+   poly_a) are eta-expanded so the binding stays a valid let-rec right-hand
+   side. *)
 let eta_expand_printer printer_expr =
-  match printer_expr.pexp_desc with
-  | Pexp_function (_parameters, _type_constraint, _body) -> printer_expr
-  | _other_expression -> [%expr fun fmt x -> [%e printer_expr] fmt x]
+  if is_syntactic_function printer_expr then printer_expr else [%expr fun fmt x -> [%e printer_expr] fmt x]
 
 let str_of_type ~deriver ~with_path ~path
   ({
