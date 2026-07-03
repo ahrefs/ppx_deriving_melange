@@ -288,6 +288,12 @@ let expr_of_record fields =
   let comparisons = List.map record_field_comparison fields in
   Exp.fun_ Nolabel None (pvar "a") (Exp.fun_ Nolabel None (pvar "b") (reduce_comparisons comparisons))
 
+(* Aliases whose comparison is not already a lambda (type b = a, type t = float
+   poly_abs) are eta-expanded so the binding stays a valid let-rec right-hand
+   side. *)
+let eta_expand_comparison compare_expr =
+  if is_syntactic_function compare_expr then compare_expr else [%expr fun a b -> [%e compare_expr] a b]
+
 let str_of_type ~deriver
   ({
      ptype_name = _type_name;
@@ -304,7 +310,7 @@ let str_of_type ~deriver
     | Ptype_variant constructors, _type_manifest -> expr_of_variant constructors
     | Ptype_record record_fields, _type_manifest -> expr_of_record record_fields
     | Ptype_abstract, None -> Location.raise_errorf ~loc "deriving.%s doesn't support abstract types" deriver
-    | Ptype_abstract, Some manifest_type -> compare_expr_of_core_type manifest_type
+    | Ptype_abstract, Some manifest_type -> eta_expand_comparison (compare_expr_of_core_type manifest_type)
     | Ptype_open, _type_manifest -> Location.raise_errorf ~loc "deriving.%s doesn't support open types" deriver
   in
   let compare_exp =

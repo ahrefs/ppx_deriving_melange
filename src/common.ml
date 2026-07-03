@@ -92,6 +92,16 @@ let record_payload_pattern prefix fields =
   in
   Pat.record field_patterns Closed
 
+(* Whether the expression is a syntactic function, i.e. a valid right-hand side
+   of a let-rec binding. Derivers eta-expand alias expressions that fail this
+   check: a bare reference or application of a function from the same recursive
+   binding group (type b = a, type t = float poly_abs) is rejected by the
+   compiler. *)
+let is_syntactic_function expr =
+  match expr.pexp_desc with
+  | Pexp_function (_parameters, _type_constraint, _body) -> true
+  | _other_expression -> false
+
 (* Conservative over-approximation of the free type variables: `as`-alias names
    and `Ptyp_poly` binders are counted too. Over-collecting only means a type is
    traversed (and possibly rejected with a clear error) instead of collapsing to
