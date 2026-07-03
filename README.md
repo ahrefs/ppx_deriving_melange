@@ -3,7 +3,7 @@
 `ppx_deriving_melange` is intended to be a Melange-compatible subset of
 `ppx_deriving`.
 
-Supported derivers: `eq`, `iter`, and `ord`.
+Supported derivers: `eq`, `iter`, `ord`, and `show`.
 
 ## eq
 
@@ -168,10 +168,109 @@ As with `eq` and `iter`, `ref`, `lazy_t`, `nativeint`, functor-applied type
 paths, and polymorphic variant row inheritance are rejected with a clear error
 (native `ppx_deriving.ord` supports these, but they are out of scope here).
 
+## show
+
+`show` generates a structural debug printer: a Format-based `pp` plus a
+`show` function that renders a value to a string in OCaml-like syntax:
+
+```ocaml
+type t =
+  | Red
+  | Green
+  | Blue
+[@@deriving show]
+```
+
+This generates:
+
+```ocaml
+val pp : Stdlib.Format.formatter -> t -> unit
+val show : t -> string
+```
+
+Naming follows the usual convention: `type t` generates `pp`/`show`,
+`type status` generates `pp_status`/`show_status`, and a reference to `Foo.t`
+uses `Foo.pp`. Parameterized types take a printer callback per type parameter,
+e.g. `val show : (Stdlib.Format.formatter -> 'a -> unit) -> 'a t -> string`.
+
+### show output
+
+Output matches native `ppx_deriving.show`:
+
+- constructors print as `Zero`, `(One 5)`, `(Pair (1, "a"))`; inline-record
+  payloads as `Item {rank = 1; label = "x"}`
+- records print as `{ name = "a"; count = 1 }`
+- primitives print in OCaml syntax: strings and chars quoted and escaped,
+  floats via `%F`, `int32` as `7l`, `int64` as `9L`, `bytes` through
+  `Bytes.to_string`, unit as `()`
+- containers: `[1; 2]`, `[|3|]`, `(Some 1)`/`None`, `(Ok 1)`/`(Error "e")`
+- polymorphic variants print as `` `All`` and `` `Name ("a")``
+- functions print as `<fun>`
+
+By default (`with_path = true`, native behavior) constructor names and the
+first record field are qualified with the module path
+(`Main_module.Sub.Red`); pass `{ with_path = false }` to drop it:
+
+```ocaml
+type t = Red [@@deriving show { with_path = false }]
+
+(* show Red = "Red" *)
+```
+
+A re-exported definition (`type u = M.s = A | B`) prints the manifest's module
+path (`M.A`), also matching native behavior.
+
+### show attributes
+
+A custom printer can be provided on a payload or field type with
+`[@printer ...]`; the printer body may use a bare `fprintf`, which is aliased
+to `Stdlib.Format.fprintf` as in native `ppx_deriving.show`. The namespaced
+form `[@deriving.show.printer ...]` is also accepted:
+
+```ocaml
+type t = Named of (string[@printer fun fmt -> fprintf fmt "name=%s"])
+[@@deriving show { with_path = false }]
+
+(* show (Named "x") = "(Named name=x)" *)
+```
+
+`[@printer]` is also accepted on a constructor declaration; the printer
+receives `fmt` and the payload packed as one value (`()`, the single payload,
+or a tuple), or one argument per field for inline-record payloads:
+
+```ocaml
+type t =
+  | First [@printer fun fmt _ -> Format.pp_print_string fmt "first"]
+  | Second of int [@printer fun fmt i -> fprintf fmt "second: %d" i]
+[@@deriving show]
+
+(* show First = "first", show (Second 42) = "second: 42" *)
+```
+
+`[@opaque]` (or `[@deriving.show.opaque]`) prints `<opaque>` without
+traversing the value:
+
+```ocaml
+type t = { secret : (string[@opaque]) } [@@deriving show]
+```
+
+### show scope
+
+`show` supports the same shapes as `eq`/`ord` (variants with tuple and
+inline-record payloads, records, tuples, simple aliases, type parameters,
+generic type applications, recursive type groups, closed polymorphic variants,
+and `list`, `option`, `array`, `result`, and `unit`), plus arrow types
+(printed as `<fun>`).
+
+As with the other derivers, `ref`, `lazy_t`, `nativeint`, functor-applied type
+paths, and polymorphic variant row inheritance are out of scope (native
+`ppx_deriving.show` supports these). `[@polyprinter]` and `[@nobuiltin]` are
+not supported either.
+
 ## Unsupported for now
 
 - polymorphic variant row inheritance
-- `enum`, `show`, and the rest of `ppx_deriving.std`
+- `enum` and the rest of `ppx_deriving.std`
 
 ## Roadmap From `ppx_deriving`
 
@@ -181,5 +280,6 @@ future milestones:
 - standard containers: `ref`, `lazy_t`
 - type aliases whose target type is not otherwise supported
 - custom `[@nobuiltin]` handling
-- expression extension support, e.g. `[%eq: t]`
+- expression extension support, e.g. `[%eq: t]` / `[%show: t]`
+- `show`'s `[@polyprinter]` attribute
 - `map` and `fold` derivers sharing the same traversal style as `iter`
