@@ -23,6 +23,13 @@ Snapshot generated code for standard container payloads.
     let rec compare : t -> t -> int =
      fun a ->
       fun b ->
+       let to_int value =
+         match value with
+         | Items _ -> 0
+         | Maybe _ -> 1
+         | Scores _ -> 2
+         | Parsed _ -> 3
+       in
        match (a, b) with
        | Items a0, Items b0 ->
            (let rec loop x y =
@@ -66,15 +73,10 @@ Snapshot generated code for standard container payloads.
              | Ok _value, Error _error -> -1
              | Error _error, Ok _value -> 1)
              a0 b0
-       | _ ->
-           let to_int value =
-             match value with
-             | Items _ -> 0
-             | Maybe _ -> 1
-             | Scores _ -> 2
-             | Parsed _ -> 3
-           in
-           Stdlib.compare (to_int a) (to_int b)
+       | Items _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Maybe _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Scores _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Parsed _0, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare

@@ -18,15 +18,16 @@ Snapshot generated code for a closed polymorphic variant.
     let rec compare : t -> t -> int =
      fun a ->
       fun b ->
+       let to_int value =
+         match value with `All -> 0 | `Name _ -> 1 | `Count _ -> 2
+       in
        match (a, b) with
        | `All, `All -> 0
        | `Name a, `Name b -> (fun (a : string) b -> Stdlib.compare a b) a b
        | `Count a, `Count b -> (fun (a : int) b -> Stdlib.compare a b) a b
-       | _ ->
-           let to_int value =
-             match value with `All -> 0 | `Name _ -> 1 | `Count _ -> 2
-           in
-           Stdlib.compare (to_int a) (to_int b)
+       | `All, _ -> Stdlib.compare (to_int a) (to_int b)
+       | `Name _, _ -> Stdlib.compare (to_int a) (to_int b)
+       | `Count _, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare

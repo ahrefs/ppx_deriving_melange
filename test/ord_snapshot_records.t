@@ -46,6 +46,7 @@ Snapshot generated code for a record payload constructor.
     let rec compare : t -> t -> int =
      fun a ->
       fun b ->
+       let to_int value = match value with Empty -> 0 | Item _ -> 1 in
        match (a, b) with
        | Empty, Empty -> 0
        | ( Item { rank = a_rank; label = a_label },
@@ -53,9 +54,8 @@ Snapshot generated code for a record payload constructor.
            match (fun (a : int) b -> Stdlib.compare a b) a_rank b_rank with
            | 0 -> (fun (a : string) b -> Stdlib.compare a b) a_label b_label
            | result -> result)
-       | _ ->
-           let to_int value = match value with Empty -> 0 | Item _ -> 1 in
-           Stdlib.compare (to_int a) (to_int b)
+       | Empty, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Item _, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare

@@ -189,6 +189,18 @@ and polyvariant_index_case i field =
     raise_unsupported_polyvariant_rtag ~loc:field.prf_loc ~is_constant ~payload_types
   | Rinherit _row_type -> raise_unsupported_polyvariant_inherit ~loc:field.prf_loc
 
+and polyvariant_different_case field =
+  match field.prf_desc with
+  | Rtag (label, true, []) ->
+    Exp.case (Pat.tuple [ Pat.variant label.txt None; Pat.any () ]) [%expr Stdlib.compare (to_int a) (to_int b)]
+  | Rtag (label, false, [ _payload_type ]) ->
+    Exp.case
+      (Pat.tuple [ Pat.variant label.txt (Some (Pat.any ())); Pat.any () ])
+      [%expr Stdlib.compare (to_int a) (to_int b)]
+  | Rtag (_label, is_constant, payload_types) ->
+    raise_unsupported_polyvariant_rtag ~loc:field.prf_loc ~is_constant ~payload_types
+  | Rinherit _row_type -> raise_unsupported_polyvariant_inherit ~loc:field.prf_loc
+
 and polyvariant_compare fields =
   let same_cases = List.map polyvariant_same_case fields in
   match fields with
@@ -197,14 +209,12 @@ and polyvariant_compare fields =
   | _first :: _second :: _rest ->
     let index_cases = List.mapi polyvariant_index_case fields in
     let to_int_fn = Exp.fun_ Nolabel None (pvar "value") (Exp.match_ (Exp.ident (lid_of_string "value")) index_cases) in
-    let wildcard =
-      Exp.case (Pat.any ())
-        [%expr
-          let to_int = [%e to_int_fn] in
-          Stdlib.compare (to_int a) (to_int b)]
-    in
+    let different_cases = List.map polyvariant_different_case fields in
     Exp.fun_ Nolabel None (pvar "a")
-      (Exp.fun_ Nolabel None (pvar "b") (Exp.match_ [%expr a, b] (same_cases @ [ wildcard ])))
+      (Exp.fun_ Nolabel None (pvar "b")
+         [%expr
+           let to_int = [%e to_int_fn] in
+           [%e Exp.match_ [%expr a, b] (same_cases @ different_cases)]])
 
 let payload_comparison payload_types =
   let comparisons =
@@ -255,6 +265,16 @@ let constructor_index_case i constructor =
   in
   Exp.case (constructor_pattern constructor.pcd_name.txt payload) (eint ~loc i)
 
+let different_constructor_case constructor =
+  let payload =
+    match constructor.pcd_args with
+    | Pcstr_tuple payload_types -> payload_pattern "_" payload_types
+    | Pcstr_record _record_payload_fields -> Some (Pat.any ())
+  in
+  Exp.case
+    (Pat.tuple [ constructor_pattern constructor.pcd_name.txt payload; Pat.any () ])
+    [%expr Stdlib.compare (to_int a) (to_int b)]
+
 let expr_of_variant constructors =
   let same_cases = List.map same_constructor_case constructors in
   match constructors with
@@ -263,14 +283,12 @@ let expr_of_variant constructors =
   | _first :: _second :: _rest ->
     let index_cases = List.mapi constructor_index_case constructors in
     let to_int_fn = Exp.fun_ Nolabel None (pvar "value") (Exp.match_ (Exp.ident (lid_of_string "value")) index_cases) in
-    let wildcard =
-      Exp.case (Pat.any ())
-        [%expr
-          let to_int = [%e to_int_fn] in
-          Stdlib.compare (to_int a) (to_int b)]
-    in
+    let different_cases = List.map different_constructor_case constructors in
     Exp.fun_ Nolabel None (pvar "a")
-      (Exp.fun_ Nolabel None (pvar "b") (Exp.match_ [%expr a, b] (same_cases @ [ wildcard ])))
+      (Exp.fun_ Nolabel None (pvar "b")
+         [%expr
+           let to_int = [%e to_int_fn] in
+           [%e Exp.match_ [%expr a, b] (same_cases @ different_cases)]])
 
 let record_field_comparison field_decl =
   let field_name = field_decl.pld_name in

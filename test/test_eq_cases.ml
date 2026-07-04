@@ -488,6 +488,28 @@ module Generic_application_alias = struct
     assert_bool_equal (equal (Box.Box Item.A) (Box.Box Item.B)) false
 end
 
+module Fragile_match_regression = struct
+  [@@@ocaml.warning "@4"]
+
+  type t =
+    | A
+    | B of int
+    | C of { x : int }
+  [@@deriving eq]
+
+  type pv =
+    [ `A
+    | `B of int
+    ]
+  [@@deriving eq]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (equal A A) true;
+    assert_bool_equal (equal A (B 1)) false;
+    assert_bool_equal (equal (B 1) (C { x = 1 })) false;
+    assert_bool_equal (equal_pv `A (`B 1)) false
+end
+
 let all : Test_case.t list =
   [
     { name = "variant"; run = Variant.run };
@@ -517,4 +539,5 @@ let all : Test_case.t list =
     { name = "alias_to_type_variable"; run = Alias_to_type_variable.run };
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
     { name = "generic_application_alias"; run = Generic_application_alias.run };
+    { name = "fragile_match_regression"; run = Fragile_match_regression.run };
   ]
