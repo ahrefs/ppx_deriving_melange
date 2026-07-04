@@ -78,7 +78,10 @@ Snapshot a mutually recursive group (one recursive binding group).
     [@@ocaml.warning "-39"]
   
     and show_tree : tree -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_tree x
+     fun x ->
+      match x with
+      | Leaf a0 -> "(Leaf " ^ string_of_int a0 ^ ")"
+      | Node a0 -> "(Node " ^ show_forest a0 ^ ")"
     [@@ocaml.warning "-39"]
   
     and pp_forest : Stdlib.Format.formatter -> forest -> unit =
@@ -102,7 +105,10 @@ Snapshot a mutually recursive group (one recursive binding group).
     [@@ocaml.warning "-39"]
   
     and show_forest : forest -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_forest x
+     fun x ->
+      ("{ " ^ "trees = "
+      ^ (fun x -> "[" ^ String.concat "; " (List.map show_tree x) ^ "]") x.trees)
+      ^ " }"
     [@@ocaml.warning "-39"]
   
     let _ = pp_tree

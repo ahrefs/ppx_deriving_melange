@@ -182,7 +182,8 @@ Snapshot generated code for a generic type application.
          | B -> Stdlib.Format.pp_print_string fmt "Input.Item.B"
       [@@ocaml.warning "-39"]
   
-      and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+      and show : t -> string =
+       fun x -> match x with A -> "Input.Item.A" | B -> "Input.Item.B"
       [@@ocaml.warning "-39"]
   
       let _ = pp

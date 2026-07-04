@@ -28,7 +28,12 @@ Snapshot record printing: the module path lands on the first field only.
        Stdlib.Format.fprintf fmt "@ }@]"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      ((("{ " ^ "Input.name = " ^ (fun x -> "\"" ^ String.escaped x ^ "\"") x.name)
+       ^ "; ")
+      ^ "count = " ^ string_of_int x.count)
+      ^ " }"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -70,7 +75,15 @@ Snapshot an inline-record payload (fields are not path-qualified).
            Stdlib.Format.fprintf fmt "@]}"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      match x with
+      | Empty -> "Input.Empty"
+      | Item { rank = a_rank; label = a_label } ->
+          ((("Input.Item {" ^ "rank = " ^ string_of_int a_rank) ^ "; ")
+          ^ "label = "
+          ^ (fun x -> "\"" ^ String.escaped x ^ "\"") a_label)
+          ^ "}"
     [@@ocaml.warning "-39"]
   
     let _ = pp

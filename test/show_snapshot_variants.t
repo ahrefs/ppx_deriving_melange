@@ -21,7 +21,12 @@ shapes (constant, single payload, n-ary payload).
        | Blue -> Stdlib.Format.pp_print_string fmt "Input.Blue"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      match x with
+      | Red -> "Input.Red"
+      | Green -> "Input.Green"
+      | Blue -> "Input.Blue"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -51,7 +56,14 @@ shapes (constant, single payload, n-ary payload).
     [@@ocaml.warning "-39"]
   
     and show_status : status -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_status x
+     fun x ->
+      match x with
+      | Zero -> "Input.Zero"
+      | One a0 -> "(Input.One " ^ string_of_int a0 ^ ")"
+      | Pair (a0, a1) ->
+          ((("(Input.Pair (" ^ string_of_int a0) ^ ", ")
+          ^ (fun x -> "\"" ^ String.escaped x ^ "\"") a1)
+          ^ "))"
     [@@ocaml.warning "-39"]
   
     let _ = pp_status
@@ -81,7 +93,7 @@ Snapshot a single-constructor type.
     [@@ocaml.warning "-39"]
   
     and show_wrap : wrap -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_wrap x
+     fun x -> match x with Wrap a0 -> "(Input.Wrap " ^ string_of_int a0 ^ ")"
     [@@ocaml.warning "-39"]
   
     let _ = pp_wrap

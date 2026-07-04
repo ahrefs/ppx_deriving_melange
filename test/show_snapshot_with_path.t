@@ -22,7 +22,7 @@ module (capitalized input file basename) plus the submodule path;
       fun x -> match x with Red -> Stdlib.Format.pp_print_string fmt "Input.Red"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string = fun x -> match x with Red -> "Input.Red"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -40,7 +40,7 @@ module (capitalized input file basename) plus the submodule path;
     [@@ocaml.warning "-39"]
   
     and show_unqualified : unqualified -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_unqualified x
+     fun x -> match x with Blue -> "Blue"
     [@@ocaml.warning "-39"]
   
     let _ = pp_unqualified
@@ -60,7 +60,7 @@ module (capitalized input file basename) plus the submodule path;
          | Deep -> Stdlib.Format.pp_print_string fmt "Input.Nested.Deep"
       [@@ocaml.warning "-39"]
   
-      and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+      and show : t -> string = fun x -> match x with Deep -> "Input.Nested.Deep"
       [@@ocaml.warning "-39"]
   
       let _ = pp
@@ -97,7 +97,8 @@ referring to a local name drops the path entirely (native parity).
          | B -> Stdlib.Format.pp_print_string fmt "Input.M.B"
       [@@ocaml.warning "-39"]
   
-      and show_s : s -> string = fun x -> Stdlib.Format.asprintf "%a" pp_s x
+      and show_s : s -> string =
+       fun x -> match x with A -> "Input.M.A" | B -> "Input.M.B"
       [@@ocaml.warning "-39"]
   
       let _ = pp_s
@@ -118,7 +119,7 @@ referring to a local name drops the path entirely (native parity).
        | B -> Stdlib.Format.pp_print_string fmt "M.B"
     [@@ocaml.warning "-39"]
   
-    and show_u : u -> string = fun x -> Stdlib.Format.asprintf "%a" pp_u x
+    and show_u : u -> string = fun x -> match x with A -> "M.A" | B -> "M.B"
     [@@ocaml.warning "-39"]
   
     let _ = pp_u
@@ -135,7 +136,7 @@ referring to a local name drops the path entirely (native parity).
       fun x -> match x with Red -> Stdlib.Format.pp_print_string fmt "Red"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string = fun x -> match x with Red -> "Red"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -152,7 +153,7 @@ referring to a local name drops the path entirely (native parity).
       fun x -> match x with Red -> Stdlib.Format.pp_print_string fmt "Red"
     [@@ocaml.warning "-39"]
   
-    and show_v : v -> string = fun x -> Stdlib.Format.asprintf "%a" pp_v x
+    and show_v : v -> string = fun x -> match x with Red -> "Red"
     [@@ocaml.warning "-39"]
   
     let _ = pp_v

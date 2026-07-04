@@ -387,6 +387,221 @@ let expr_of_record ~with_path ~path fields =
 let eta_expand_printer printer_expr =
   if is_syntactic_function printer_expr then printer_expr else [%expr fun fmt x -> [%e printer_expr] fmt x]
 
+(* ---- String rendering for [show] ----------------------------------------
+
+   In Melange, referencing Stdlib.Format at all pulls the large
+   CamlinternalFormat machinery into the JS bundle (Format calls it
+   internally, so even direct pp_print_* calls retain it). [show] is
+   therefore generated as plain string building whenever the type allows it:
+   frontend code that only calls [show] never links Format, while [pp] stays
+   Format-based for native parity, [%a] composition, and [@printer] support.
+
+   String rendering produces exactly the strings [pp] renders for values that
+   fit Format's margin; longer values stay on a single line instead of
+   wrapping. Composition happens through other types' [show] functions.
+
+   [Formatter_required] aborts string rendering where a formatter is
+   genuinely needed — type parameters (the callbacks are printers), custom
+   [@printer] attributes, and applications of parameterized types — in which
+   case [show] falls back to [Stdlib.Format.asprintf "%a" pp]. Payload shapes
+   that [show] does not support at all are rejected earlier, when the [pp]
+   expression is generated. *)
+exception Formatter_required
+
+(* The pure-stdlib equivalents of the %d/%S/%C/%F/... conversions [pp] uses;
+   each matches the Format output exactly (%F's infinity/nan spelling
+   included). *)
+let string_primitive_renderer typ name =
+  let loc = typ.ptyp_loc in
+  match name with
+  | "unit" -> [%expr fun () -> "()"]
+  | "int" -> [%expr string_of_int]
+  | "bool" -> [%expr string_of_bool]
+  | "string" -> [%expr fun x -> "\"" ^ String.escaped x ^ "\""]
+  | "char" -> [%expr fun x -> "'" ^ Char.escaped x ^ "'"]
+  | "bytes" -> [%expr fun x -> "\"" ^ String.escaped (Bytes.to_string x) ^ "\""]
+  | "int32" -> [%expr fun x -> Int32.to_string x ^ "l"]
+  | "int64" -> [%expr fun x -> Int64.to_string x ^ "L"]
+  | "float" ->
+    [%expr
+      fun x ->
+        match classify_float x with
+        | FP_nan -> "nan"
+        | FP_infinite -> if x > 0.0 then "infinity" else "-infinity"
+        | _finite_class -> string_of_float x]
+  | _other_name ->
+    (* Unreachable: string_renderer_of_payload_lid only dispatches the names
+       above. *)
+    Location.raise_errorf ~loc "deriving.show doesn't support payload type %s" (string_of_core_type typ)
+
+(* before ^ part1 ^ separator ^ part2 ^ ... ^ after, as one expression. *)
+let concat_rendered ~before ~separator ~after rendered_parts =
+  let pieces =
+    (estring ~loc before :: separated ~separator:(estring ~loc separator) rendered_parts) @ [ estring ~loc after ]
+  in
+  match pieces with
+  | [] -> estring ~loc ""
+  | first :: rest -> List.fold_left (fun acc piece -> [%expr [%e acc] ^ [%e piece]]) first rest
+
+let rec string_renderer_of_core_type typ =
+  let loc = typ.ptyp_loc in
+  match Attribute.get attr_printer typ with
+  | Some _custom_printer -> raise Formatter_required
+  | None ->
+  match Attribute.get attr_deriving_show_printer typ with
+  | Some _custom_printer -> raise Formatter_required
+  | None ->
+    if Attribute.has_flag attr_opaque typ || Attribute.has_flag attr_deriving_show_opaque typ then
+      [%expr fun _value -> "<opaque>"]
+    else (
+      match typ.ptyp_desc with
+      | Ptyp_constr ({ txt = type_path; loc = type_path_loc }, type_args) ->
+        string_renderer_of_type_constructor type_path_loc typ type_path type_args
+      | Ptyp_arrow (_argument_label, _argument_type, _return_type) -> [%expr fun _function_value -> "<fun>"]
+      | Ptyp_tuple tuple_types -> string_tuple_renderer tuple_types
+      | Ptyp_variant (variant_fields, Closed, _variant_labels) -> string_polyvariant_renderer variant_fields
+      | Ptyp_var _type_variable_name -> raise Formatter_required
+      | _other_type -> raise Formatter_required)
+
+and string_renderer_of_type_constructor loc typ type_path type_args =
+  match has_functor_application type_path, type_path, type_args with
+  | true, _type_path, _type_args -> raise Formatter_required
+  | false, Lident "list", [ element_typ ] ->
+    [%expr fun x -> "[" ^ String.concat "; " (List.map [%e string_renderer_of_core_type element_typ] x) ^ "]"]
+  | false, Lident "option", [ element_typ ] ->
+    [%expr
+      fun x ->
+        match x with
+        | None -> "None"
+        | Some value -> "(Some " ^ [%e string_renderer_of_core_type element_typ] value ^ ")"]
+  | false, Lident "array", [ element_typ ] ->
+    [%expr
+      fun x ->
+        "[|" ^ String.concat "; " (Array.to_list (Array.map [%e string_renderer_of_core_type element_typ] x)) ^ "|]"]
+  | false, Lident "result", [ ok_typ; error_typ ] ->
+    [%expr
+      fun x ->
+        match x with
+        | Ok value -> "(Ok " ^ [%e string_renderer_of_core_type ok_typ] value ^ ")"
+        | Error error -> "(Error " ^ [%e string_renderer_of_core_type error_typ] error ^ ")"]
+  | false, (Lident _type_name | Ldot (_, _type_name)), _first_type_arg :: _remaining_type_args ->
+    (* Applications of parameterized types compose through pp printers. *)
+    raise Formatter_required
+  | false, (Lident _type_name | Ldot (_, _type_name)), [] -> string_renderer_of_payload_lid loc typ type_path
+  | false, Lapply (_left_path, _right_path), _type_args -> raise Formatter_required
+
+and string_renderer_of_payload_lid loc typ = function
+  | Lident (("string" | "int" | "bool" | "float" | "char" | "int32" | "int64" | "bytes" | "unit") as name) ->
+    string_primitive_renderer typ name
+  | Ldot (Lident "Int32", "t") -> string_primitive_renderer typ "int32"
+  | Ldot (Lident "Int64", "t") -> string_primitive_renderer typ "int64"
+  | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"show" name)) loc)
+  | Ldot (path, name) -> Exp.ident (mkloc (Ldot (path, mangle_name ~prefix:"show" name)) loc)
+  | Lapply (_left_path, _right_path) -> raise Formatter_required
+
+and string_tuple_renderer tuple_types =
+  let pattern, expressions = tuple_bindings "a" tuple_types in
+  let rendered_parts =
+    List.map2
+      (fun typ expression -> [%expr [%e string_renderer_of_core_type typ] [%e expression]])
+      tuple_types expressions
+  in
+  Exp.fun_ Nolabel None pattern (concat_rendered ~before:"(" ~separator:", " ~after:")" rendered_parts)
+
+and string_polyvariant_case field =
+  match field.prf_desc with
+  | Rtag (label, true, []) -> Exp.case (Pat.variant label.txt None) (estring ~loc ("`" ^ label.txt))
+  | Rtag (label, false, [ payload_type ]) ->
+    Exp.case
+      (Pat.variant label.txt (Some (pvar "payload")))
+      [%expr [%e estring ~loc ("`" ^ label.txt ^ " (")] ^ [%e string_renderer_of_core_type payload_type] payload ^ ")"]
+  | Rtag (_label, _is_constant, _payload_types) -> raise Formatter_required
+  | Rinherit _row_type -> raise Formatter_required
+
+and string_polyvariant_renderer fields =
+  let cases = List.map string_polyvariant_case fields in
+  Exp.fun_ Nolabel None (pvar "x") (Exp.match_ [%expr x] cases)
+
+let string_record_payload_field_renderer field_decl =
+  let field_name = field_decl.pld_name.txt in
+  let field_type =
+    { field_decl.pld_type with ptyp_attributes = field_decl.pld_type.ptyp_attributes @ field_decl.pld_attributes }
+  in
+  [%expr
+    [%e estring ~loc (field_name ^ " = ")]
+    ^ [%e string_renderer_of_core_type field_type] [%e Exp.ident (lid_of_string ("a_" ^ field_name))]]
+
+let string_constructor_case ~with_path ~path constructor =
+  (match
+     ( Attribute.get attr_constructor_printer constructor,
+       Attribute.get attr_deriving_show_constructor_printer constructor )
+   with
+  | None, None -> ()
+  | Some _custom_printer, _other_form | _other_form, Some _custom_printer -> raise Formatter_required);
+  let name = constructor.pcd_name.txt in
+  let printed_name = expand_path ~with_path ~path name in
+  match constructor.pcd_args with
+  | Pcstr_tuple [] -> Exp.case (constructor_pattern name None) (estring ~loc printed_name)
+  | Pcstr_tuple [ payload_type ] ->
+    Exp.case
+      (constructor_pattern name (payload_pattern "a" [ payload_type ]))
+      [%expr [%e estring ~loc ("(" ^ printed_name ^ " ")] ^ [%e string_renderer_of_core_type payload_type] a0 ^ ")"]
+  | Pcstr_tuple payload_types ->
+    let rendered_parts =
+      List.mapi
+        (fun i typ ->
+          [%expr [%e string_renderer_of_core_type typ] [%e Exp.ident (lid_of_string ("a" ^ string_of_int i))]])
+        payload_types
+    in
+    Exp.case
+      (constructor_pattern name (payload_pattern "a" payload_types))
+      (concat_rendered ~before:("(" ^ printed_name ^ " (") ~separator:", " ~after:"))" rendered_parts)
+  | Pcstr_record record_payload_fields ->
+    Exp.case
+      (constructor_pattern name (Some (record_payload_pattern "a_" record_payload_fields)))
+      (concat_rendered ~before:(printed_name ^ " {") ~separator:"; " ~after:"}"
+         (List.map string_record_payload_field_renderer record_payload_fields))
+
+let string_expr_of_variant ~with_path ~path constructors =
+  let cases = List.map (string_constructor_case ~with_path ~path) constructors in
+  Exp.fun_ Nolabel None (pvar "x") (Exp.match_ [%expr x] cases)
+
+let string_record_field_renderer ~with_path ~path index field_decl =
+  let field_name = field_decl.pld_name.txt in
+  let printed_name =
+    match index with
+    | 0 -> expand_path ~with_path ~path field_name
+    | _later_field_index -> field_name
+  in
+  let field_type =
+    { field_decl.pld_type with ptyp_attributes = field_decl.pld_type.ptyp_attributes @ field_decl.pld_attributes }
+  in
+  let field_lid = mkloc (Lident field_name) field_decl.pld_name.loc in
+  [%expr
+    [%e estring ~loc (printed_name ^ " = ")]
+    ^ [%e string_renderer_of_core_type field_type] [%e Exp.field (Exp.ident (lid_of_string "x")) field_lid]]
+
+let string_expr_of_record ~with_path ~path fields =
+  let rendered_fields = List.mapi (string_record_field_renderer ~with_path ~path) fields in
+  Exp.fun_ Nolabel None (pvar "x") (concat_rendered ~before:"{ " ~separator:"; " ~after:" }" rendered_fields)
+
+let eta_expand_string_renderer renderer_expr =
+  if is_syntactic_function renderer_expr then renderer_expr else [%expr fun x -> [%e renderer_expr] x]
+
+(* The string-rendering [show] for a whole declaration, or None when a
+   formatter is required and [show] must fall back to asprintf over [pp]. *)
+let string_show_of_type ~with_path ~path type_decl =
+  match type_decl.ptype_params, type_decl.ptype_kind, type_decl.ptype_manifest with
+  | _first_type_param :: _remaining_type_params, _type_kind, _type_manifest -> None
+  | [], Ptype_variant constructors, _type_manifest ->
+    (try Some (string_expr_of_variant ~with_path ~path constructors) with Formatter_required -> None)
+  | [], Ptype_record record_fields, _type_manifest ->
+    (try Some (string_expr_of_record ~with_path ~path record_fields) with Formatter_required -> None)
+  | [], Ptype_abstract, Some manifest_type ->
+    (try Some (eta_expand_string_renderer (string_renderer_of_core_type manifest_type))
+     with Formatter_required -> None)
+  | [], _other_kind, _type_manifest -> None
+
 let str_of_type ~deriver ~with_path ~path
   ({
      ptype_name = _type_name;
@@ -420,7 +635,11 @@ let str_of_type ~deriver ~with_path ~path
       (Exp.ident (lid_of_string (pp_name type_decl)))
       ptype_params
   in
-  let show_exp = [%expr fun x -> Stdlib.Format.asprintf "%a" [%e applied_pp] x] in
+  let show_exp =
+    match string_show_of_type ~with_path ~path type_decl with
+    | Some string_show_exp -> string_show_exp
+    | None -> with_type_parameters [%expr fun x -> Stdlib.Format.asprintf "%a" [%e applied_pp] x]
+  in
   [
     Vb.mk
       ~attrs:[ warning_attribute "-39" ]
@@ -429,7 +648,7 @@ let str_of_type ~deriver ~with_path ~path
     Vb.mk
       ~attrs:[ warning_attribute "-39" ]
       (Pat.constraint_ (pvar (show_name type_decl)) (show_type_of_decl type_decl))
-      (with_type_parameters show_exp);
+      show_exp;
   ]
 
 let sig_of_type type_decl =

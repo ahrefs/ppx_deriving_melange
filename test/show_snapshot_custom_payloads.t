@@ -105,7 +105,12 @@ The namespaced form [@deriving.show.printer] is accepted too.
        Stdlib.Format.fprintf fmt "@ }@]"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      ((("{ " ^ "secret = " ^ (fun _value -> "<opaque>") x.secret) ^ "; ")
+      ^ "callback = "
+      ^ (fun _function_value -> "<fun>") x.callback)
+      ^ " }"
     [@@ocaml.warning "-39"]
   
     let _ = pp

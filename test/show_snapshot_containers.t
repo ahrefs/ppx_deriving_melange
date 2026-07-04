@@ -81,7 +81,34 @@ Snapshot the container printers (list/option/array/result).
        Stdlib.Format.fprintf fmt "@ }@]"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      ((((((("{ " ^ "items = "
+            ^ (fun x -> "[" ^ String.concat "; " (List.map string_of_int x) ^ "]")
+                x.items)
+           ^ "; ")
+          ^ "maybe = "
+          ^ (fun x ->
+              match x with
+              | None -> "None"
+              | Some value -> "(Some " ^ string_of_int value ^ ")")
+              x.maybe)
+         ^ "; ")
+        ^ "scores = "
+        ^ (fun x ->
+            "[|"
+            ^ String.concat "; " (Array.to_list (Array.map string_of_int x))
+            ^ "|]")
+            x.scores)
+       ^ "; ")
+      ^ "outcome = "
+      ^ (fun x ->
+          match x with
+          | Ok value -> "(Ok " ^ string_of_int value ^ ")"
+          | Error error ->
+              "(Error " ^ (fun x -> "\"" ^ String.escaped x ^ "\"") error ^ ")")
+          x.outcome)
+      ^ " }"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -112,7 +139,7 @@ Snapshot container aliases of custom types.
          match x with A -> Stdlib.Format.pp_print_string fmt "Input.Item.A"
       [@@ocaml.warning "-39"]
   
-      and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+      and show : t -> string = fun x -> match x with A -> "Input.Item.A"
       [@@ocaml.warning "-39"]
   
       let _ = pp
@@ -139,7 +166,7 @@ Snapshot container aliases of custom types.
     [@@ocaml.warning "-39"]
   
     and show_items : items -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_items x
+     fun x -> "[" ^ String.concat "; " (List.map Item.show x) ^ "]"
     [@@ocaml.warning "-39"]
   
     let _ = pp_items
@@ -162,7 +189,10 @@ Snapshot container aliases of custom types.
     [@@ocaml.warning "-39"]
   
     and show_maybe_item : maybe_item -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_maybe_item x
+     fun x ->
+      match x with
+      | None -> "None"
+      | Some value -> "(Some " ^ Item.show value ^ ")"
     [@@ocaml.warning "-39"]
   
     let _ = pp_maybe_item

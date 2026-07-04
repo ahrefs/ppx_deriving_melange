@@ -30,7 +30,13 @@ Snapshot a closed polymorphic variant (constant and payload cases).
            Stdlib.Format.fprintf fmt "@])"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      match x with
+      | `All -> "`All"
+      | `Name payload ->
+          "`Name (" ^ (fun x -> "\"" ^ String.escaped x ^ "\"") payload ^ ")"
+      | `Count payload -> "`Count (" ^ string_of_int payload ^ ")"
     [@@ocaml.warning "-39"]
   
     let _ = pp

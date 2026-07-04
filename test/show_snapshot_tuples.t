@@ -22,7 +22,11 @@ Snapshot a tuple alias and a nested tuple payload.
        Stdlib.Format.fprintf fmt "@])"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun (a0, a1) ->
+      ((("(" ^ string_of_int a0) ^ ", ")
+      ^ (fun x -> "\"" ^ String.escaped x ^ "\"") a1)
+      ^ ")"
     [@@ocaml.warning "-39"]
   
     let _ = pp
@@ -60,7 +64,20 @@ Snapshot a tuple alias and a nested tuple payload.
     [@@ocaml.warning "-39"]
   
     and show_nested : nested -> string =
-     fun x -> Stdlib.Format.asprintf "%a" pp_nested x
+     fun x ->
+      match x with
+      | Pair a0 ->
+          "(Pair "
+          ^ (fun (a0, a1) ->
+              ((("(" ^ string_of_int a0) ^ ", ")
+              ^ (fun (a0, a1) ->
+                  ((("(" ^ (fun x -> "\"" ^ String.escaped x ^ "\"") a0) ^ ", ")
+                  ^ string_of_bool a1)
+                  ^ ")")
+                  a1)
+              ^ ")")
+              a0
+          ^ ")"
     [@@ocaml.warning "-39"]
   
     let _ = pp_nested

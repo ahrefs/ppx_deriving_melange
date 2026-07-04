@@ -340,6 +340,20 @@ module Constructor_printer = struct
     assert_bool_equal (String.equal (show (Fifth { x = 1; y = "a" })) "fifth: 1 a") true
 end
 
+module Long_value_single_line = struct
+  (* Intentional divergence from native ppx_deriving.show: [show] builds the
+     string directly (so Melange bundles don't need Format), and values longer
+     than Format's margin stay on one line instead of wrapping. [pp] keeps the
+     native wrapping behavior. *)
+  type t = { items : int list } [@@deriving show { with_path = false }]
+
+  let run ~assert_bool_equal =
+    let items = List.init 30 (fun i -> i) in
+    let expected = "{ items = [" ^ String.concat "; " (List.map string_of_int items) ^ "] }" in
+    assert_bool_equal (String.equal (show { items }) expected) true;
+    assert_bool_equal (String.contains (show { items }) '\n') false
+end
+
 module Module_signature = struct
   module M : sig
     type t =
@@ -385,5 +399,6 @@ let all : Test_case.t list =
     { name = "stdlib_module_shadowing"; run = Stdlib_module_shadowing.run };
     { name = "re_export_path"; run = Re_export_path.run };
     { name = "constructor_printer"; run = Constructor_printer.run };
+    { name = "long_value_single_line"; run = Long_value_single_line.run };
     { name = "module_signature"; run = Module_signature.run };
   ]

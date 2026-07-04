@@ -171,7 +171,9 @@ paths, and polymorphic variant row inheritance are rejected with a clear error
 ## show
 
 `show` generates a structural debug printer: a Format-based `pp` plus a
-`show` function that renders a value to a string in OCaml-like syntax:
+`show` function that renders a value to a string in OCaml-like syntax.
+`show` builds the string directly (without Format) whenever the type allows
+it — see [show and Melange bundle size](#show-and-melange-bundle-size):
 
 ```ocaml
 type t =
@@ -195,7 +197,9 @@ e.g. `val show : (Stdlib.Format.formatter -> 'a -> unit) -> 'a t -> string`.
 
 ### show output
 
-Output matches native `ppx_deriving.show`:
+Output matches native `ppx_deriving.show`, with one intentional exception:
+values longer than Format's margin (80 columns) print on a single line from
+`show`, where native wraps them (`pp` wraps exactly like native):
 
 - constructors print as `Zero`, `(One 5)`, `(Pair (1, "a"))`; inline-record
   payloads as `Item {rank = 1; label = "x"}`
@@ -252,6 +256,31 @@ traversing the value:
 
 ```ocaml
 type t = { secret : (string[@opaque]) } [@@deriving show]
+```
+
+### show and Melange bundle size
+
+Melange compiles `Stdlib.Format` to a large amount of JavaScript. To keep
+frontend bundles small, `show` builds its string directly (`string_of_int`,
+`String.escaped`, `^`) whenever the type allows it, composing through other
+types' `show` functions — code that only calls `show` does not need Format at
+all. `pp` stays Format-based for native parity, `%a` composition, and
+`[@printer]` support.
+
+`show` falls back to Format (`asprintf "%a" pp`) when a formatter is really
+needed: type parameters (the callbacks are printers), custom `[@printer]`
+attributes, or applications of parameterized types such as `int Box.t`.
+
+Bundler note: the generated module still imports Format because of `pp`, and
+melange marks Format as having side effects, so bundlers keep the import even
+when `pp` is unused. To let the bundler drop it, mark melange stdlib modules
+side-effect-free, e.g. with an esbuild plugin:
+
+```js
+build.onResolve({ filter: /^melange\// }, (args) => ({
+  path: resolveMelangePath(args.path),
+  sideEffects: false,
+}));
 ```
 
 ### show scope

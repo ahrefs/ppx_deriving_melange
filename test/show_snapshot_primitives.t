@@ -87,7 +87,46 @@ Bytes.to_string; unit prints ()).
        Stdlib.Format.fprintf fmt "@ }@]"
     [@@ocaml.warning "-39"]
   
-    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    and show : t -> string =
+     fun x ->
+      ((((((((((((((((((((("{ " ^ "s = "
+                          ^ (fun x -> "\"" ^ String.escaped x ^ "\"") x.s)
+                         ^ "; ")
+                        ^ "n = " ^ string_of_int x.n)
+                       ^ "; ")
+                      ^ "b = " ^ string_of_bool x.b)
+                     ^ "; ")
+                    ^ "f = "
+                    ^ (fun x ->
+                        match classify_float x with
+                        | FP_nan -> "nan"
+                        | FP_infinite ->
+                            if x > 0.0 then "infinity" else "-infinity"
+                        | _finite_class -> string_of_float x)
+                        x.f)
+                   ^ "; ")
+                  ^ "c = "
+                  ^ (fun x -> "'" ^ Char.escaped x ^ "'") x.c)
+                 ^ "; ")
+                ^ "raw = "
+                ^ (fun x -> "\"" ^ String.escaped (Bytes.to_string x) ^ "\"")
+                    x.raw)
+               ^ "; ")
+              ^ "i32 = "
+              ^ (fun x -> Int32.to_string x ^ "l") x.i32)
+             ^ "; ")
+            ^ "i64 = "
+            ^ (fun x -> Int64.to_string x ^ "L") x.i64)
+           ^ "; ")
+          ^ "boxed32 = "
+          ^ (fun x -> Int32.to_string x ^ "l") x.boxed32)
+         ^ "; ")
+        ^ "boxed64 = "
+        ^ (fun x -> Int64.to_string x ^ "L") x.boxed64)
+       ^ "; ")
+      ^ "nothing = "
+      ^ (fun () -> "()") x.nothing)
+      ^ " }"
     [@@ocaml.warning "-39"]
   
     let _ = pp
