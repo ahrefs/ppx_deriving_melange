@@ -263,6 +263,32 @@ module Monomorphic_group_alias = struct
     assert_bool_equal true true
 end
 
+module Fragile_match_regression = struct
+  [@@@ocaml.warning "@4"]
+
+  type 'a t =
+    | A
+    | B of 'a
+    | C of { x : 'a }
+  [@@deriving iter]
+
+  type 'a pv =
+    [ `A
+    | `B of 'a
+    ]
+  [@@deriving iter]
+
+  let run ~assert_bool_equal =
+    let collected = ref [] in
+    let visit value = iter (fun v -> collected := v :: !collected) value in
+    visit A;
+    visit (B 1);
+    visit (C { x = 2 });
+    iter_pv (fun v -> collected := v :: !collected) `A;
+    iter_pv (fun v -> collected := v :: !collected) (`B 3);
+    assert_bool_equal (List.rev !collected = [ 1; 2; 3 ]) true
+end
+
 let all : Test_case.t list =
   [
     { name = "parameterized_variant"; run = Parameterized_variant.run };
@@ -283,4 +309,5 @@ let all : Test_case.t list =
     { name = "module_signature"; run = Module_signature.run };
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
     { name = "monomorphic_group_alias"; run = Monomorphic_group_alias.run };
+    { name = "fragile_match_regression"; run = Fragile_match_regression.run };
   ]

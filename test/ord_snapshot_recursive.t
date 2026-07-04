@@ -17,6 +17,7 @@ Snapshot generated code for a recursive type.
      fun poly_a ->
       fun a ->
        fun b ->
+        let to_int value = match value with Leaf -> 0 | Node _ -> 1 in
         match (a, b) with
         | Leaf, Leaf -> 0
         | Node (a0, a1, a2), Node (b0, b1, b2) -> (
@@ -26,9 +27,8 @@ Snapshot generated code for a recursive type.
                 | 0 -> (compare_tree poly_a) a2 b2
                 | result -> result)
             | result -> result)
-        | _ ->
-            let to_int value = match value with Leaf -> 0 | Node _ -> 1 in
-            Stdlib.compare (to_int a) (to_int b)
+        | Leaf, _ -> Stdlib.compare (to_int a) (to_int b)
+        | Node (_0, _1, _2), _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare_tree
@@ -103,12 +103,12 @@ Snapshot generated code for a mutually recursive type group.
      fun poly_a ->
       fun a ->
        fun b ->
+        let to_int value = match value with Rule _ -> 0 | Group _ -> 1 in
         match (a, b) with
         | Rule a0, Rule b0 -> (compare_rule poly_a) a0 b0
         | Group a0, Group b0 -> (compare_rule_group poly_a) a0 b0
-        | _ ->
-            let to_int value = match value with Rule _ -> 0 | Group _ -> 1 in
-            Stdlib.compare (to_int a) (to_int b)
+        | Rule _0, _ -> Stdlib.compare (to_int a) (to_int b)
+        | Group _0, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare_rule
@@ -159,12 +159,12 @@ right-hand side.
     let rec compare_a : a -> a -> int =
      fun a ->
       fun b ->
+       let to_int value = match value with A -> 0 | B -> 1 in
        match (a, b) with
        | A, A -> 0
        | B, B -> 0
-       | _ ->
-           let to_int value = match value with A -> 0 | B -> 1 in
-           Stdlib.compare (to_int a) (to_int b)
+       | A, _ -> Stdlib.compare (to_int a) (to_int b)
+       | B, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     and compare_b : b -> b -> int = fun a b -> compare_a a b

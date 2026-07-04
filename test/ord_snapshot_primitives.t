@@ -37,6 +37,20 @@ Snapshot generated code for primitive payloads (typed Stdlib.compare).
     let rec compare : t -> t -> int =
      fun a ->
       fun b ->
+       let to_int value =
+         match value with
+         | StringPayload _ -> 0
+         | IntPayload _ -> 1
+         | BoolPayload _ -> 2
+         | FloatPayload _ -> 3
+         | CharPayload _ -> 4
+         | BytesPayload _ -> 5
+         | Int32Payload _ -> 6
+         | QualifiedInt32Payload _ -> 7
+         | Int64Payload _ -> 8
+         | QualifiedInt64Payload _ -> 9
+         | UnitPayload _ -> 10
+       in
        match (a, b) with
        | StringPayload a0, StringPayload b0 ->
            (fun (a : string) b -> Stdlib.compare a b) a0 b0
@@ -60,22 +74,17 @@ Snapshot generated code for primitive payloads (typed Stdlib.compare).
            (fun (a : Int64.t) b -> Stdlib.compare a b) a0 b0
        | UnitPayload a0, UnitPayload b0 ->
            (fun (a : unit) b -> Stdlib.compare a b) a0 b0
-       | _ ->
-           let to_int value =
-             match value with
-             | StringPayload _ -> 0
-             | IntPayload _ -> 1
-             | BoolPayload _ -> 2
-             | FloatPayload _ -> 3
-             | CharPayload _ -> 4
-             | BytesPayload _ -> 5
-             | Int32Payload _ -> 6
-             | QualifiedInt32Payload _ -> 7
-             | Int64Payload _ -> 8
-             | QualifiedInt64Payload _ -> 9
-             | UnitPayload _ -> 10
-           in
-           Stdlib.compare (to_int a) (to_int b)
+       | StringPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | IntPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | BoolPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | FloatPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | CharPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | BytesPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Int32Payload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | QualifiedInt32Payload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | Int64Payload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | QualifiedInt64Payload _0, _ -> Stdlib.compare (to_int a) (to_int b)
+       | UnitPayload _0, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare

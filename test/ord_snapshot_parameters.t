@@ -19,12 +19,12 @@ Snapshot generated code for a parameterized variant.
      fun poly_a ->
       fun a ->
        fun b ->
+        let to_int value = match value with Value _ -> 0 | Missing -> 1 in
         match (a, b) with
         | Value a0, Value b0 -> poly_a a0 b0
         | Missing, Missing -> 0
-        | _ ->
-            let to_int value = match value with Value _ -> 0 | Missing -> 1 in
-            Stdlib.compare (to_int a) (to_int b)
+        | Value _0, _ -> Stdlib.compare (to_int a) (to_int b)
+        | Missing, _ -> Stdlib.compare (to_int a) (to_int b)
     [@@ocaml.warning "-39"]
   
     let _ = compare
@@ -121,12 +121,12 @@ Snapshot generated code for a generic type application.
       let rec compare : t -> t -> int =
        fun a ->
         fun b ->
+         let to_int value = match value with A -> 0 | B -> 1 in
          match (a, b) with
          | A, A -> 0
          | B, B -> 0
-         | _ ->
-             let to_int value = match value with A -> 0 | B -> 1 in
-             Stdlib.compare (to_int a) (to_int b)
+         | A, _ -> Stdlib.compare (to_int a) (to_int b)
+         | B, _ -> Stdlib.compare (to_int a) (to_int b)
       [@@ocaml.warning "-39"]
   
       let _ = compare

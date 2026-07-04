@@ -265,6 +265,26 @@ module Generic_application_alias = struct
     assert_bool_equal (compare (Box.Box Item.A) (Box.Box Item.B) < 0) true
 end
 
+module Fragile_match_regression = struct
+  type t =
+    | A
+    | B of int
+    | C of { x : int }
+  [@@deriving ord]
+
+  type pv =
+    [ `A
+    | `B of int
+    ]
+  [@@deriving ord]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (compare A A = 0) true;
+    assert_bool_equal (compare A (B 1) < 0) true;
+    assert_bool_equal (compare (B 1) (C { x = 1 }) < 0) true;
+    assert_bool_equal (compare_pv `A (`B 1) < 0) true
+end
+
 let all : Test_case.t list =
   [
     { name = "variant_ordering"; run = Variant_ordering.run };
@@ -286,4 +306,5 @@ let all : Test_case.t list =
     { name = "alias_to_type_variable"; run = Alias_to_type_variable.run };
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
     { name = "generic_application_alias"; run = Generic_application_alias.run };
+    { name = "fragile_match_regression"; run = Fragile_match_regression.run };
   ]
