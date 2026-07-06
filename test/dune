@@ -5,6 +5,7 @@
   test_case
   test_eq_cases
   test_iter_cases
+  test_map_cases
   test_ord_cases
   test_show_cases)
  (preprocess
@@ -18,6 +19,11 @@
 (test
  (name test_iter)
  (modules test_iter)
+ (libraries ounit2 ppx_deriving_melange_runtime_cases))
+
+(test
+ (name test_map)
+ (modules test_map)
  (libraries ounit2 ppx_deriving_melange_runtime_cases))
 
 (test
