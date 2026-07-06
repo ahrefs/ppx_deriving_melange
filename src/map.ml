@@ -9,16 +9,17 @@ let deriver = "map"
 let map_name type_decl = mangle_type_decl ~prefix:"map" type_decl
 let type_parameter_map_name typ = "poly_" ^ type_parameter_name ~deriver typ
 
+let input_type_variable_names type_decl =
+  List.map
+    (fun (type_param, _variance_and_injectivity) -> type_parameter_name ~deriver type_param)
+    type_decl.ptype_params
+
 (* map is the only deriver whose signature needs distinct result type
    variables: ('a -> 'b) -> 'a t -> 'b t. Output names are the first free
    letters not used by the declared parameters ('a -> 'b; ('a, 'b) -> ('c, 'd);
    ('k, 'v) -> ('a, 'b)), with numbered suffixes past 'z'. *)
 let output_type_variable_names type_decl =
-  let input_names =
-    List.map
-      (fun (type_param, _variance_and_injectivity) -> type_parameter_name ~deriver type_param)
-      type_decl.ptype_params
-  in
+  let input_names = input_type_variable_names type_decl in
   let candidate index =
     let letter = String.make 1 (Char.chr (Char.code 'a' + (index mod 26))) in
     match index / 26 with
@@ -45,6 +46,20 @@ let type_of_decl type_decl =
     (fun (type_param, _variance_and_injectivity) output_name acc ->
       Typ.arrow Nolabel [%type: [%t type_param] -> [%t Typ.var output_name]] acc)
     type_decl.ptype_params output_names base_type
+
+(* The let-rec bindings are annotated with an explicitly polymorphic type
+   ('a 'b. ...): plain named variables are scoped across the whole recursive
+   binding group, so sibling declarations would silently unify each other's
+   input and output variables (collapsing map to 'a -> 'a when parameter names
+   differ) or fail the occur check when one declaration instantiates a sibling
+   at a composite argument. The explicit quantifier scopes the variables per
+   binding and permits polymorphic recursion across the group. *)
+let annotation_of_decl type_decl =
+  let typ = type_of_decl type_decl in
+  match input_type_variable_names type_decl @ output_type_variable_names type_decl with
+  | [] -> typ
+  | _first_variable :: _remaining_variables as variable_names ->
+    Typ.poly (List.map (fun name -> mkloc name type_decl.ptype_loc) variable_names) typ
 
 let map_expr_of_payload_lid loc typ = function
   | Lident name -> Exp.ident (mkloc (Lident (mangle_name ~prefix:"map" name)) loc)
@@ -138,12 +153,12 @@ and tuple_map tuple_types =
 and raise_unsupported_polyvariant_rtag ~loc ~is_constant ~payload_types =
   match is_constant, payload_types with
   | false, _first_payload :: _second_payload :: _remaining_payloads ->
-    Location.raise_errorf ~loc "deriving.map doesn't support polymorphic variant cases with multiple payloads"
+    Location.raise_errorf ~loc "deriving.map cannot be derived for polymorphic variant cases with multiple payloads"
   | true, _unexpected_payloads ->
-    Location.raise_errorf ~loc "deriving.map doesn't support malformed constant polymorphic variant payloads"
-  | false, [] -> Location.raise_errorf ~loc "deriving.map doesn't support empty polymorphic variant payload cases"
+    Location.raise_errorf ~loc "deriving.map cannot be derived for malformed constant polymorphic variant payloads"
+  | false, [] -> Location.raise_errorf ~loc "deriving.map cannot be derived for empty polymorphic variant payload cases"
   | false, [ _single_payload ] ->
-    Location.raise_errorf ~loc "deriving.map doesn't support this polymorphic variant case"
+    Location.raise_errorf ~loc "deriving.map cannot be derived for this polymorphic variant case"
 
 and raise_unsupported_polyvariant_inherit ~loc =
   Location.raise_errorf ~loc "deriving.map doesn't support inherited polymorphic variant rows"
@@ -215,11 +230,6 @@ let expr_of_variant constructors =
   let cases = List.map constructor_case constructors in
   Exp.fun_ Nolabel None (pvar "x") (Exp.match_ [%expr x] cases)
 
-(* Aliases whose mapper is not already a lambda (type b = a, type t = float
-   poly_abs) are eta-expanded so the binding stays a valid let-rec right-hand
-   side. *)
-let eta_expand_mapper map_expr = if is_syntactic_function map_expr then map_expr else [%expr fun x -> [%e map_expr] x]
-
 let str_of_type ~deriver
   ({
      ptype_name = _type_name;
@@ -236,7 +246,7 @@ let str_of_type ~deriver
     | Ptype_variant constructors, _type_manifest -> expr_of_variant constructors
     | Ptype_record record_fields, _type_manifest -> expr_of_record record_fields
     | Ptype_abstract, None -> Location.raise_errorf ~loc "deriving.%s doesn't support abstract types" deriver
-    | Ptype_abstract, Some manifest_type -> eta_expand_mapper (map_expr_of_core_type manifest_type)
+    | Ptype_abstract, Some manifest_type -> map_expr_of_core_type manifest_type
     | Ptype_open, _type_manifest -> Location.raise_errorf ~loc "deriving.%s doesn't support open types" deriver
   in
   let map_exp =
@@ -248,7 +258,7 @@ let str_of_type ~deriver
   [
     Vb.mk
       ~attrs:[ warning_attribute "-39" ]
-      (Pat.constraint_ (pvar (map_name type_decl)) (type_of_decl type_decl))
+      (Pat.constraint_ (pvar (map_name type_decl)) (annotation_of_decl type_decl))
       map_exp;
   ]
 

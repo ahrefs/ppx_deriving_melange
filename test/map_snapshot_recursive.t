@@ -13,7 +13,7 @@ Snapshot generated code for a recursive type.
   include struct
     let _ = fun (_ : 'a tree) -> ()
   
-    let rec map_tree : ('a -> 'b) -> 'a tree -> 'b tree =
+    let rec map_tree : 'a 'b. ('a -> 'b) -> 'a tree -> 'b tree =
      fun poly_a ->
       fun x ->
        match x with
@@ -51,7 +51,7 @@ Snapshot generated code for a mutually recursive type group.
     let _ = fun (_ : 'a rule_group) -> ()
     let _ = fun (_ : 'a t) -> ()
   
-    let rec map_rule : ('a -> 'b) -> 'a rule -> 'b rule =
+    let rec map_rule : 'a 'b. ('a -> 'b) -> 'a rule -> 'b rule =
      fun poly_a ->
       fun x ->
        {
@@ -60,11 +60,11 @@ Snapshot generated code for a mutually recursive type group.
        }
     [@@ocaml.warning "-39"]
   
-    and map_rule_group : ('a -> 'b) -> 'a rule_group -> 'b rule_group =
+    and map_rule_group : 'a 'b. ('a -> 'b) -> 'a rule_group -> 'b rule_group =
      fun poly_a -> fun x -> { rules = (List.map (map poly_a)) x.rules }
     [@@ocaml.warning "-39"]
   
-    and map : ('a -> 'b) -> 'a t -> 'b t =
+    and map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t =
      fun poly_a ->
       fun x ->
        match x with

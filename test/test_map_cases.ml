@@ -147,6 +147,81 @@ module Two_parameters = struct
     assert_bool_equal (convert (Both (2, "b")) = Both ("2", "B")) true
 end
 
+module Two_parameter_record = struct
+  type ('a, 'b) t = {
+    first : 'a;
+    second : 'b;
+  }
+  [@@deriving map]
+
+  (* Mirrors the native ppx_deriving regression test for issue #82: each field
+     must be rebuilt by the callback matching its own type parameter. *)
+  let run ~assert_bool_equal =
+    assert_bool_equal
+      (map string_of_int String.uppercase_ascii { first = 1; second = "x" } = { first = "1"; second = "X" })
+      true
+end
+
+module Recursive_group_alias = struct
+  type 'a pair = 'a * 'a
+  and 'a t = 'a pair [@@deriving map]
+
+  let run ~assert_bool_equal = assert_bool_equal (map succ (1, 2) = (2, 3)) true
+end
+
+module Monomorphic_group_alias = struct
+  type a = A of int
+  and b = a [@@deriving map]
+
+  let run ~assert_bool_equal =
+    (* map_b is the identity: it must exist and return its argument unchanged *)
+    assert_bool_equal (map_b (A 1) = A 1) true
+end
+
+module Group_with_distinct_parameter_names = struct
+  (* Regression: the generated let-rec annotations must quantify their type
+     variables per binding. With group-scoped variables, u's 'b unified with
+     t's 'a and 'b, silently collapsing map to ('a -> 'a) and rejecting
+     type-changing calls like the one below. *)
+  type 'a t = A of 'a
+  and 'b u = B of 'b t [@@deriving map]
+
+  let run ~assert_bool_equal = assert_bool_equal (map_u string_of_int (B (A 1)) = B (A "1")) true
+end
+
+module Group_instantiating_sibling = struct
+  (* Regression: mapping a sibling instantiated at a composite argument
+     requires polymorphic recursion across the group; with group-scoped
+     annotation variables the generated code failed the occur check. *)
+  type 'a t = A of 'a
+  and 'a u = B of ('a * 'a) t [@@deriving map]
+
+  let run ~assert_bool_equal = assert_bool_equal (map_u succ (B (A (1, 2))) = B (A (2, 3))) true
+end
+
+module Fragile_match_regression = struct
+  [@@@ocaml.warning "@4"]
+
+  type 'a t =
+    | A
+    | B of 'a
+    | C of { x : 'a }
+  [@@deriving map]
+
+  type 'a pv =
+    [ `A
+    | `B of 'a
+    ]
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map succ A = A) true;
+    assert_bool_equal (map succ (B 1) = B 2) true;
+    assert_bool_equal (map succ (C { x = 2 }) = C { x = 3 }) true;
+    assert_bool_equal (map_pv succ `A = `A) true;
+    assert_bool_equal (map_pv succ (`B 3) = `B 4) true
+end
+
 module Phantom_parameter = struct
   type 'a t = Id of int [@@deriving map]
 
@@ -224,6 +299,21 @@ module Polymorphic_variant = struct
     assert_bool_equal (map succ (`Tagged "kept") = `Tagged "kept") true
 end
 
+module Recursive_polymorphic_variant = struct
+  type ('a, 'b) t =
+    [ `A of 'a
+    | `B of ('a, 'b) t
+    | `C of 'b
+    ]
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    let convert = map string_of_int String.uppercase_ascii in
+    assert_bool_equal (convert (`A 1) = `A "1") true;
+    assert_bool_equal (convert (`B (`C "x")) = `B (`C "X")) true;
+    assert_bool_equal (convert (`B (`B (`A 2))) = `B (`B (`A "2"))) true
+end
+
 module Status_naming = struct
   type 'a status = Active of 'a [@@deriving map]
 
@@ -252,12 +342,19 @@ let all : Test_case.t list =
     { name = "recursive_record_payload"; run = Recursive_record_payload.run };
     { name = "mutually_recursive"; run = Mutually_recursive.run };
     { name = "two_parameters"; run = Two_parameters.run };
+    { name = "two_parameter_record"; run = Two_parameter_record.run };
+    { name = "recursive_group_alias"; run = Recursive_group_alias.run };
+    { name = "monomorphic_group_alias"; run = Monomorphic_group_alias.run };
+    { name = "group_with_distinct_parameter_names"; run = Group_with_distinct_parameter_names.run };
+    { name = "group_instantiating_sibling"; run = Group_instantiating_sibling.run };
+    { name = "fragile_match_regression"; run = Fragile_match_regression.run };
     { name = "phantom_parameter"; run = Phantom_parameter.run };
     { name = "monomorphic_identity"; run = Monomorphic_identity.run };
     { name = "generic_application"; run = Generic_application.run };
     { name = "alias_of_generic_application"; run = Alias_of_generic_application.run };
     { name = "result_alias"; run = Result_alias.run };
     { name = "polymorphic_variant"; run = Polymorphic_variant.run };
+    { name = "recursive_polymorphic_variant"; run = Recursive_polymorphic_variant.run };
     { name = "status_naming"; run = Status_naming.run };
     { name = "module_signature"; run = Module_signature.run };
   ]

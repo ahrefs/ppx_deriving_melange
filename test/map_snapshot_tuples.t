@@ -15,7 +15,7 @@ Snapshot generated code for tuple payloads.
   include struct
     let _ = fun (_ : 'a t) -> ()
   
-    let rec map : ('a -> 'b) -> 'a t -> 'b t =
+    let rec map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t =
      fun poly_a ->
       fun x ->
        match x with
@@ -33,7 +33,7 @@ Snapshot generated code for tuple payloads.
   include struct
     let _ = fun (_ : 'a alias) -> ()
   
-    let rec map_alias : ('a -> 'b) -> 'a alias -> 'b alias =
+    let rec map_alias : 'a 'b. ('a -> 'b) -> 'a alias -> 'b alias =
      fun poly_a -> fun (a0, a1) -> (poly_a a0, (fun x -> x) a1)
     [@@ocaml.warning "-39"]
   

@@ -22,7 +22,7 @@ Snapshot generated code for container payloads.
   include struct
     let _ = fun (_ : 'a t) -> ()
   
-    let rec map : ('a -> 'b) -> 'a t -> 'b t =
+    let rec map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t =
      fun poly_a ->
       fun x ->
        match x with

@@ -16,7 +16,7 @@ Snapshot generated code for a parameterized variant.
   include struct
     let _ = fun (_ : 'a t) -> ()
   
-    let rec map : ('a -> 'b) -> 'a t -> 'b t =
+    let rec map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t =
      fun poly_a ->
       fun x ->
        match x with
@@ -48,7 +48,7 @@ Snapshot generated code for a record payload constructor.
   include struct
     let _ = fun (_ : 'a item) -> ()
   
-    let rec map_item : ('a -> 'b) -> 'a item -> 'b item =
+    let rec map_item : 'a 'b. ('a -> 'b) -> 'a item -> 'b item =
      fun poly_a ->
       fun x ->
        match x with

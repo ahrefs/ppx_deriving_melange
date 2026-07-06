@@ -15,7 +15,8 @@ Snapshot generated code for two type parameters and a phantom parameter.
   include struct
     let _ = fun (_ : ('a, 'b) t) -> ()
   
-    let rec map : ('a -> 'c) -> ('b -> 'd) -> ('a, 'b) t -> ('c, 'd) t =
+    let rec map :
+        'a 'b 'c 'd. ('a -> 'c) -> ('b -> 'd) -> ('a, 'b) t -> ('c, 'd) t =
      fun poly_a ->
       fun poly_b ->
        fun x ->
@@ -30,7 +31,7 @@ Snapshot generated code for two type parameters and a phantom parameter.
   include struct
     let _ = fun (_ : 'a phantom) -> ()
   
-    let rec map_phantom : ('a -> 'b) -> 'a phantom -> 'b phantom =
+    let rec map_phantom : 'a 'b. ('a -> 'b) -> 'a phantom -> 'b phantom =
      fun poly_a -> fun x -> match x with Id a0 -> Id ((fun x -> x) a0)
     [@@ocaml.warning "-39"]
   
@@ -55,7 +56,7 @@ Snapshot generated code for a generic type application.
     include struct
       let _ = fun (_ : 'a t) -> ()
   
-      let rec map : ('a -> 'b) -> 'a t -> 'b t =
+      let rec map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t =
        fun poly_a -> fun x -> match x with Box a0 -> Box (poly_a a0)
       [@@ocaml.warning "-39"]
   
@@ -68,8 +69,7 @@ Snapshot generated code for a generic type application.
   include struct
     let _ = fun (_ : 'a t) -> ()
   
-    let rec map : ('a -> 'b) -> 'a t -> 'b t =
-     fun poly_a -> fun x -> (Box.map poly_a) x
+    let rec map : 'a 'b. ('a -> 'b) -> 'a t -> 'b t = fun poly_a -> Box.map poly_a
     [@@ocaml.warning "-39"]
   
     let _ = map
@@ -98,7 +98,8 @@ Output type variables skip the declared parameter names.
   include struct
     let _ = fun (_ : ('b, 'c) t) -> ()
   
-    let rec map : ('b -> 'a) -> ('c -> 'd) -> ('b, 'c) t -> ('a, 'd) t =
+    let rec map :
+        'b 'c 'a 'd. ('b -> 'a) -> ('c -> 'd) -> ('b, 'c) t -> ('a, 'd) t =
      fun poly_b ->
       fun poly_c ->
        fun x ->
