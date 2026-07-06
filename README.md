@@ -3,7 +3,7 @@
 `ppx_deriving_melange` is intended to be a Melange-compatible subset of
 `ppx_deriving`.
 
-Supported derivers: `eq`, `iter`, `ord`, and `show`.
+Supported derivers: `eq`, `iter`, `map`, `ord`, and `show`.
 
 ## eq
 
@@ -115,6 +115,66 @@ custom-function attribute. Functor-applied type paths (`Make(Arg).t`) and
 polymorphic variant row inheritance are rejected with a clear error when they
 are reached; monomorphic occurrences collapse to the no-op first, as in native
 `ppx_deriving`.
+
+## map
+
+`map` generates a function that rebuilds a value with every type-parameter
+position transformed — the structural counterpart of `iter`:
+
+```ocaml
+type 'a tree =
+  | Leaf
+  | Node of 'a tree * 'a * 'a tree
+[@@deriving map]
+```
+
+This generates:
+
+```ocaml
+val map_tree : ('a -> 'b) -> 'a tree -> 'b tree
+```
+
+Naming follows the same convention as the other derivers: `type t` generates
+`map`, `type status` generates `map_status`, and a reference to `Foo.t` uses
+`Foo.map`. Each type parameter takes its own callback, with a fresh result
+variable per parameter:
+
+```ocaml
+type ('a, 'b) t = Left of 'a | Right of 'b [@@deriving map]
+
+val map : ('a -> 'c) -> ('b -> 'd) -> ('a, 'b) t -> ('c, 'd) t
+```
+
+Result variable names are the first free letters not used by the declared
+parameters (so `('k, 'v) t` maps with `('k -> 'a) -> ('v -> 'b) -> ...`).
+
+### map semantics
+
+Matching native `ppx_deriving.map`, a type expression with no free type
+variables maps as the identity:
+
+```ocaml
+type t = Foo.t [@@deriving map]
+```
+
+generates a `val map : t -> t` that returns its argument unchanged — in
+particular, `Foo.map` is not required to exist (unlike `eq`, which needs
+`Foo.equal`). Constructors, record fields, and containers are rebuilt with
+their shape preserved: `List.map`/`Array.map` for lists and arrays,
+`None`/`Some`, `Ok`/`Error`, and tuples element by element.
+
+### map scope
+
+`map` supports the same shapes as `iter`: variants (including tuple and
+inline-record payloads), records, tuples, simple aliases, type parameters,
+generic type applications, recursive type groups, closed polymorphic variants,
+and `list`, `option`, `array`, and `result` payloads.
+
+Also matching native `ppx_deriving.map`, there is no `[@map ...]`
+custom-function attribute. Functor-applied type paths (`Make(Arg).t`) and
+polymorphic variant row inheritance are rejected with a clear error when they
+are reached; monomorphic occurrences collapse to the identity first, as in
+native `ppx_deriving`.
 
 ## ord
 
@@ -311,4 +371,4 @@ future milestones:
 - custom `[@nobuiltin]` handling
 - expression extension support, e.g. `[%eq: t]` / `[%show: t]`
 - `show`'s `[@polyprinter]` attribute
-- `map` and `fold` derivers sharing the same traversal style as `iter`
+- a `fold` deriver sharing the same traversal style as `iter` and `map`
