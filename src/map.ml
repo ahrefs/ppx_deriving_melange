@@ -15,7 +15,8 @@ let type_parameter_map_name typ = "poly_" ^ type_parameter_name ~deriver typ
    ('k, 'v) -> ('a, 'b)), with numbered suffixes past 'z'. *)
 let output_type_variable_names type_decl =
   let input_names =
-    List.map (fun (type_param, _variance_and_injectivity) -> type_parameter_name ~deriver type_param)
+    List.map
+      (fun (type_param, _variance_and_injectivity) -> type_parameter_name ~deriver type_param)
       type_decl.ptype_params
   in
   let candidate index =
@@ -167,8 +168,9 @@ let record_field_mapping field_decl =
   let field_name = field_decl.pld_name in
   let field_lid = mkloc (Lident field_name.txt) field_name.loc in
   ( field_lid,
-    Exp.apply (map_expr_of_core_type field_decl.pld_type) [ Nolabel, Exp.field (Exp.ident (lid_of_string "x")) field_lid ]
-  )
+    Exp.apply
+      (map_expr_of_core_type field_decl.pld_type)
+      [ Nolabel, Exp.field (Exp.ident (lid_of_string "x")) field_lid ] )
 
 let expr_of_record fields =
   let mapped_fields = List.map record_field_mapping fields in

@@ -26,7 +26,8 @@ module Container_payloads = struct
 
   let run ~assert_bool_equal =
     let mapped = map string_of_int { items = [ 1; 2 ]; maybe = Some 3; scores = [| 4; 5 |]; outcome = Error 6 } in
-    assert_bool_equal (mapped = { items = [ "1"; "2" ]; maybe = Some "3"; scores = [| "4"; "5" |]; outcome = Error "6" })
+    assert_bool_equal
+      (mapped = { items = [ "1"; "2" ]; maybe = Some "3"; scores = [| "4"; "5" |]; outcome = Error "6" })
       true;
     let empty = map string_of_int { items = []; maybe = None; scores = [||]; outcome = Ok 9 } in
     assert_bool_equal (empty = { items = []; maybe = None; scores = [||]; outcome = Ok "9" }) true
@@ -94,8 +95,7 @@ module Mutually_recursive = struct
 
   let run ~assert_bool_equal =
     let value =
-      Group
-        { rules = [ Rule { terms = [ "title" ]; search_location = 1 }; Rule { terms = []; search_location = 2 } ] }
+      Group { rules = [ Rule { terms = [ "title" ]; search_location = 1 }; Rule { terms = []; search_location = 2 } ] }
     in
     let expected =
       Group
