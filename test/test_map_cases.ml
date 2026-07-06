@@ -80,6 +80,35 @@ module Recursive_tree = struct
     assert_bool_equal (map_tree (fun v -> v * 10) tree = expected) true
 end
 
+module Recursive_two_parameters = struct
+  type ('a, 'b) t =
+    | Left of 'a
+    | Flag of bool
+    | Chain of 'b * ('a, 'b) t
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    let convert = map succ String.uppercase_ascii in
+    assert_bool_equal (convert (Chain ("abc", Chain ("xyz", Left 1))) = Chain ("ABC", Chain ("XYZ", Left 2))) true;
+    assert_bool_equal (convert (Chain ("abc", Flag true)) = Chain ("ABC", Flag true)) true
+end
+
+module Recursive_record_payload = struct
+  type 'a t =
+    | Node of {
+        left : 'a t;
+        value : 'a;
+        right : 'a t;
+      }
+    | Leaf
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    let tree = Node { left = Node { left = Leaf; value = 1; right = Leaf }; value = 2; right = Leaf } in
+    let expected = Node { left = Node { left = Leaf; value = 10; right = Leaf }; value = 20; right = Leaf } in
+    assert_bool_equal (map (fun v -> v * 10) tree = expected) true
+end
+
 module Mutually_recursive = struct
   type 'a rule = {
     terms : string list;
@@ -173,6 +202,14 @@ module Alias_of_generic_application = struct
   let run ~assert_bool_equal = assert_bool_equal (map succ (Box.Box 7) = Box.Box 8) true
 end
 
+module Result_alias = struct
+  type 'a t = ('a, bool) result [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map succ (Ok 9) = Ok 10) true;
+    assert_bool_equal (map succ (Error true) = Error true) true
+end
+
 module Polymorphic_variant = struct
   type 'a t =
     [ `All
@@ -211,12 +248,15 @@ let all : Test_case.t list =
     { name = "tuple_payload"; run = Tuple_payload.run };
     { name = "record_payload_constructor"; run = Record_payload_constructor.run };
     { name = "recursive_tree"; run = Recursive_tree.run };
+    { name = "recursive_two_parameters"; run = Recursive_two_parameters.run };
+    { name = "recursive_record_payload"; run = Recursive_record_payload.run };
     { name = "mutually_recursive"; run = Mutually_recursive.run };
     { name = "two_parameters"; run = Two_parameters.run };
     { name = "phantom_parameter"; run = Phantom_parameter.run };
     { name = "monomorphic_identity"; run = Monomorphic_identity.run };
     { name = "generic_application"; run = Generic_application.run };
     { name = "alias_of_generic_application"; run = Alias_of_generic_application.run };
+    { name = "result_alias"; run = Result_alias.run };
     { name = "polymorphic_variant"; run = Polymorphic_variant.run };
     { name = "status_naming"; run = Status_naming.run };
     { name = "module_signature"; run = Module_signature.run };
