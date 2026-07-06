@@ -2,7 +2,7 @@
 opam-version: "2.0"
 synopsis: "Melange-compatible deriving plugins for OCaml"
 description:
-  "A Melange-compatible subset of ppx_deriving: eq, iter, and ord."
+  "A Melange-compatible subset of ppx_deriving: eq, iter, ord, and show."
 maintainer: ["Ahrefs"]
 authors: ["Ahrefs"]
 license: "MIT"

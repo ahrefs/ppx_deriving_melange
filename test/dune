@@ -1,7 +1,12 @@
 (library
  (name ppx_deriving_melange_runtime_cases)
  (modes :standard melange)
- (modules test_case test_eq_cases test_iter_cases test_ord_cases)
+ (modules
+  test_case
+  test_eq_cases
+  test_iter_cases
+  test_ord_cases
+  test_show_cases)
  (preprocess
   (pps ppx_deriving_melange)))
 
@@ -18,6 +23,11 @@
 (test
  (name test_ord)
  (modules test_ord)
+ (libraries ounit2 ppx_deriving_melange_runtime_cases))
+
+(test
+ (name test_show)
+ (modules test_show)
  (libraries ounit2 ppx_deriving_melange_runtime_cases))
 
 (executable
