@@ -133,6 +133,45 @@ module Mutually_recursive = struct
     assert_bool_equal (map string_of_int value = expected) true
 end
 
+module Parameter_positions_only = struct
+  type 'a t =
+    | Value of 'a
+    | Fixed of string
+  [@@deriving map]
+
+  (* map transforms values at type-parameter positions, not values of a
+     matching type: instantiated at string, a Fixed payload must pass through
+     untouched even though the callback could apply to it. *)
+  let run ~assert_bool_equal =
+    assert_bool_equal (map String.uppercase_ascii (Value "v") = Value "V") true;
+    assert_bool_equal (map String.uppercase_ascii (Fixed "kept") = Fixed "kept") true
+end
+
+module Callback_call_count = struct
+  type 'a t = {
+    single : 'a;
+    pair : 'a * 'a;
+    items : 'a list;
+    maybe : 'a option;
+  }
+  [@@deriving map]
+
+  (* The callback runs exactly once per value at a parameter position: a
+     double application or a skip would leave the count wrong even for
+     idempotent callbacks. *)
+  let run ~assert_bool_equal =
+    let count = ref 0 in
+    let mapped =
+      map
+        (fun v ->
+          incr count;
+          v)
+        { single = 1; pair = 2, 3; items = [ 4; 5; 6 ]; maybe = Some 7 }
+    in
+    assert_bool_equal (!count = 7) true;
+    assert_bool_equal (mapped = { single = 1; pair = 2, 3; items = [ 4; 5; 6 ]; maybe = Some 7 }) true
+end
+
 module Two_parameters = struct
   type ('a, 'b) t =
     | Left of 'a
@@ -415,6 +454,8 @@ let all : Test_case.t list =
     { name = "recursive_two_parameters"; run = Recursive_two_parameters.run };
     { name = "recursive_record_payload"; run = Recursive_record_payload.run };
     { name = "mutually_recursive"; run = Mutually_recursive.run };
+    { name = "parameter_positions_only"; run = Parameter_positions_only.run };
+    { name = "callback_call_count"; run = Callback_call_count.run };
     { name = "two_parameters"; run = Two_parameters.run };
     { name = "two_parameter_record"; run = Two_parameter_record.run };
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
