@@ -238,6 +238,80 @@ module Phantom_parameter = struct
     assert_bool_equal !called false
 end
 
+module Monomorphic_variant = struct
+  type t =
+    | Zero
+    | Num of int
+    | Label of string
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map Zero = Zero) true;
+    assert_bool_equal (map (Num 1) = Num 1) true;
+    assert_bool_equal (map (Label "kept") = Label "kept") true
+end
+
+module Monomorphic_inline_record = struct
+  type t =
+    | Item of {
+        count : int;
+        label : string;
+      }
+    | Empty
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map (Item { count = 1; label = "kept" }) = Item { count = 1; label = "kept" }) true;
+    assert_bool_equal (map Empty = Empty) true
+end
+
+module Monomorphic_polyvariant = struct
+  type t =
+    [ `A
+    | `B of int
+    ]
+  [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map `A = `A) true;
+    assert_bool_equal (map (`B 1) = `B 1) true
+end
+
+module Monomorphic_recursive = struct
+  type t =
+    | Leaf
+    | Node of t * int
+  [@@deriving map]
+
+  (* A payload of type t has no free type variables, so subtrees pass through
+     the identity instead of a recursive map call; the whole structure must
+     come back intact. *)
+  let run ~assert_bool_equal =
+    let tree = Node (Node (Node (Leaf, 1), 2), 3) in
+    assert_bool_equal (map tree = tree) true
+end
+
+module Monomorphic_container_aliases = struct
+  type many = string list [@@deriving map]
+  type pair = int * bool [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map_many [ "a"; "b" ] = [ "a"; "b" ]) true;
+    assert_bool_equal (map_pair (1, true) = (1, true)) true
+end
+
+module Mixed_arity_group = struct
+  (* A parameterized declaration and a zero-parameter one share the same
+     let-rec group: the first binding carries the polymorphic annotation, the
+     second a plain monomorphic one. *)
+  type 'a holder = H of 'a
+  and box = int holder [@@deriving map]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (map_holder succ (H 1) = H 2) true;
+    assert_bool_equal (map_box (H 5) = H 5) true
+end
+
 module Monomorphic_identity = struct
   module Plain = struct
     type t = T of int
@@ -349,6 +423,12 @@ let all : Test_case.t list =
     { name = "group_instantiating_sibling"; run = Group_instantiating_sibling.run };
     { name = "fragile_match_regression"; run = Fragile_match_regression.run };
     { name = "phantom_parameter"; run = Phantom_parameter.run };
+    { name = "monomorphic_variant"; run = Monomorphic_variant.run };
+    { name = "monomorphic_inline_record"; run = Monomorphic_inline_record.run };
+    { name = "monomorphic_polyvariant"; run = Monomorphic_polyvariant.run };
+    { name = "monomorphic_recursive"; run = Monomorphic_recursive.run };
+    { name = "monomorphic_container_aliases"; run = Monomorphic_container_aliases.run };
+    { name = "mixed_arity_group"; run = Mixed_arity_group.run };
     { name = "monomorphic_identity"; run = Monomorphic_identity.run };
     { name = "generic_application"; run = Generic_application.run };
     { name = "alias_of_generic_application"; run = Alias_of_generic_application.run };
