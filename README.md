@@ -372,3 +372,13 @@ future milestones:
 - expression extension support, e.g. `[%eq: t]` / `[%show: t]`
 - `show`'s `[@polyprinter]` attribute
 - a `fold` deriver sharing the same traversal style as `iter` and `map`
+
+## Attribution
+
+`ppx_deriving_melange` reimplements a subset of
+[`ppx_deriving`](https://github.com/ocaml-ppx/ppx_deriving) by whitequark and
+contributors. The derivers were written fresh for Melange, but their
+semantics, the documentation examples, and the test scenarios are closely
+modeled on the upstream plugins. `ppx_deriving` is distributed under the MIT
+license; its copyright notice is reproduced in this repository's
+[LICENSE](LICENSE) file.
