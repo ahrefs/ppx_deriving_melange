@@ -6,7 +6,13 @@ module Map_cases = Ppx_deriving_melange_runtime_cases.Test_map_cases
 module Ord_cases = Ppx_deriving_melange_runtime_cases.Test_ord_cases
 module Show_cases = Ppx_deriving_melange_runtime_cases.Test_show_cases
 
-let assert_bool_equal actual expected = equal expect actual expected
+(* Bind node:assert directly instead of using [Fest.equal]/[Fest.expect]: the
+   released melange-fest 0.2.0 and the ahrefs-patched build disagree on the
+   argument order of [equal], so no single call works against both. *)
+external strict_equal : 'a -> 'a -> unit = "strictEqual"
+[@@mel.module "node:assert/strict"]
+
+let assert_bool_equal actual expected = strict_equal actual expected
 
 let run_cases deriver cases =
   cases
