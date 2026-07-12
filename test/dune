@@ -42,13 +42,15 @@
  (libraries ppx_deriving_melange ppxlib))
 
 (cram
- (deps ppx_deriving_melange_standalone.exe))
+ (deps ppx_deriving_melange_standalone.exe %{bin:ocamlformat}))
 
 (melange.emit
  (target node)
  (alias ppx_deriving_melange_runtime_test)
  (modules test_runtime)
  (libraries melange-fest ppx_deriving_melange_runtime_cases)
+ (preprocess
+  (pps melange.ppx))
  (module_systems
   (es6 mjs)))
 

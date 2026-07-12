@@ -3,20 +3,25 @@ opam-version: "2.0"
 synopsis: "Melange-compatible deriving plugins for OCaml"
 description:
   "A Melange-compatible subset of ppx_deriving: eq, iter, map, ord, and show."
-maintainer: ["Ahrefs"]
-authors: ["Ahrefs"]
+maintainer: [
+  "Vitalii Shapoval <vytalych@gmail.com>" "Ahrefs <github@ahrefs.com>"
+]
+authors: [
+  "Vitalii Shapoval <vytalych@gmail.com>" "Ahrefs <github@ahrefs.com>"
+]
 license: "MIT"
 tags: ["org:ahrefs" "syntax" "melange" "ppx"]
 homepage: "https://github.com/ahrefs/ppx_deriving_melange"
 bug-reports: "https://github.com/ahrefs/ppx_deriving_melange/issues"
 depends: [
+  "dune" {>= "3.16"}
   "ocaml" {>= "5.0.0"}
-  "dune" {>= "3.16" & >= "3.16"}
   "ppxlib" {> "0.36.0"}
   "melange" {>= "5.0.0"}
   "ounit2" {with-test}
   "melange-fest" {with-test}
-  "ocamlformat" {= "0.29.0" & with-dev-setup}
+  "conf-npm" {with-test}
+  "ocamlformat" {= "0.29.0" & with-test}
   "ocaml-lsp-server" {with-dev-setup}
   "odoc-driver" {with-doc}
   "odoc" {with-doc}
