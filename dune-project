@@ -7,10 +7,12 @@
 (generate_opam_files true)
 
 (maintainers
- "Ahrefs")
+ "Vitalii Shapoval <vytalych@gmail.com>"
+ "Ahrefs <github@ahrefs.com>")
 
 (authors
- "Ahrefs")
+ "Vitalii Shapoval <vytalych@gmail.com>"
+ "Ahrefs <github@ahrefs.com>")
 
 (license MIT)
 
@@ -28,14 +30,13 @@
  (depends
   (ocaml
    (>= "5.0.0"))
-  (dune
-   (>= "3.16"))
   (ppxlib
    (> "0.36.0"))
   (melange
    (>= "5.0.0"))
   (ounit2 :with-test)
   (melange-fest :with-test)
+  (conf-npm :with-test)
   (ocamlformat
    (and
     (= "0.29.0")
