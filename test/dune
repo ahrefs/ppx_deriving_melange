@@ -42,7 +42,7 @@
  (libraries ppx_deriving_melange ppxlib))
 
 (cram
- (deps ppx_deriving_melange_standalone.exe))
+ (deps ppx_deriving_melange_standalone.exe %{bin:ocamlformat}))
 
 (melange.emit
  (target node)

@@ -21,7 +21,7 @@ depends: [
   "ounit2" {with-test}
   "melange-fest" {with-test}
   "conf-npm" {with-test}
-  "ocamlformat" {= "0.29.0" & with-dev-setup}
+  "ocamlformat" {= "0.29.0" & with-test}
   "ocaml-lsp-server" {with-dev-setup}
   "odoc-driver" {with-doc}
   "odoc" {with-doc}

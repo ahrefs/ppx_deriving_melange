@@ -40,7 +40,7 @@
   (ocamlformat
    (and
     (= "0.29.0")
-    :with-dev-setup))
+    :with-test))
   (ocaml-lsp-server :with-dev-setup)
   (odoc-driver :with-doc))
  (tags
