@@ -4,6 +4,7 @@
  (modules
   test_case
   test_eq_cases
+  test_fold_cases
   test_iter_cases
   test_map_cases
   test_ord_cases
@@ -14,6 +15,11 @@
 (test
  (name test_eq)
  (modules test_eq)
+ (libraries ounit2 ppx_deriving_melange_runtime_cases))
+
+(test
+ (name test_fold)
+ (modules test_fold)
  (libraries ounit2 ppx_deriving_melange_runtime_cases))
 
 (test

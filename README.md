@@ -3,7 +3,7 @@
 `ppx_deriving_melange` is intended to be a Melange-compatible subset of
 `ppx_deriving`.
 
-Supported derivers: `eq`, `iter`, `map`, `ord`, and `show`.
+Supported derivers: `eq`, `fold`, `iter`, `map`, `ord`, and `show`.
 
 ## eq
 
@@ -175,6 +175,64 @@ custom-function attribute. Functor-applied type paths (`Make(Arg).t`) and
 polymorphic variant row inheritance are rejected with a clear error when they
 are reached; monomorphic occurrences collapse to the identity first, as in
 native `ppx_deriving`.
+
+## fold
+
+`fold` threads an accumulator through every type-parameter position, in lexical order:
+
+```ocaml
+type 'a tree =
+  | Leaf
+  | Node of 'a tree * 'a * 'a tree
+[@@deriving fold]
+```
+
+This generates:
+
+```ocaml
+val fold_tree : ('b -> 'a -> 'b) -> 'b -> 'a tree -> 'b
+```
+
+so `fold_tree (+) 0` sums an `int tree`. Naming follows the usual convention:
+`type t` generates `fold`, `type status` generates `fold_status`, and a
+reference to `Foo.t` uses `Foo.fold`. Callbacks are `fold_left`-style
+(`acc -> element -> acc`), one per type parameter, all sharing a single
+accumulator type variable — the first free letter not used by the declared
+parameters:
+
+```ocaml
+type ('a, 'b) t = Left of 'a | Right of 'b [@@deriving fold]
+
+val fold : ('c -> 'a -> 'c) -> ('c -> 'b -> 'c) -> 'c -> ('a, 'b) t -> 'c
+```
+
+### fold semantics
+
+Matching native `ppx_deriving.fold`, a type expression with no free type
+variables folds as the accumulator passthrough:
+
+```ocaml
+type t = Foo.t [@@deriving fold]
+```
+
+generates a `val fold : 'a -> t -> 'a` that returns the accumulator
+unchanged — `Foo.fold` is not required to exist. Values at parameter
+positions are visited in lexical order: record fields and constructor
+payloads in declaration order, list/array elements left to right
+(`List.fold_left`/`Array.fold_left`), tuple components left to right;
+`None` and constant constructors return the accumulator as-is.
+
+### fold scope
+
+`fold` supports the same shapes as `iter` and `map`: variants (including
+tuple and inline-record payloads), records, tuples, simple aliases, type
+parameters, generic type applications, recursive type groups, closed
+polymorphic variants, and `list`, `option`, `array`, and `result` payloads.
+
+Also matching native `ppx_deriving.fold`, there is no `[@fold ...]`
+custom-function attribute. Functor-applied type paths (`Make(Arg).t`) and
+polymorphic variant row inheritance are rejected with a clear error when
+they are reached; monomorphic occurrences collapse to the passthrough first.
 
 ## ord
 
@@ -371,7 +429,6 @@ future milestones:
 - custom `[@nobuiltin]` handling
 - expression extension support, e.g. `[%eq: t]` / `[%show: t]`
 - `show`'s `[@polyprinter]` attribute
-- a `fold` deriver sharing the same traversal style as `iter` and `map`
 
 ## Attribution
 

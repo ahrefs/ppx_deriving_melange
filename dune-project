@@ -26,7 +26,7 @@
 (package
  (name ppx_deriving_melange)
  (synopsis "Melange-compatible deriving plugins for OCaml")
- (description "A Melange-compatible subset of ppx_deriving: eq, iter, map, ord, and show.")
+ (description "A Melange-compatible subset of ppx_deriving: eq, fold, iter, map, ord, and show.")
  (depends
   (ocaml
    (>= "5.0.0"))
