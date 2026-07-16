@@ -3,7 +3,7 @@
 `ppx_deriving_melange` is intended to be a Melange-compatible subset of
 `ppx_deriving`.
 
-Supported derivers: `eq`, `fold`, `iter`, `map`, `ord`, and `show`.
+Supported derivers: `eq`, `fold`, `iter`, `make`, `map`, `ord`, and `show`.
 
 ## eq
 
@@ -413,6 +413,64 @@ As with the other derivers, `ref`, `lazy_t`, `nativeint`, functor-applied type
 paths, and polymorphic variant row inheritance are out of scope (native
 `ppx_deriving.show` supports these). `[@polyprinter]` and `[@nobuiltin]` are
 not supported either.
+
+## make
+
+`make` generates a smart constructor for a record type — a function that takes
+each field as an argument and returns the record. Unlike the other derivers it
+does not traverse types; it is records-only.
+
+```ocaml
+type status = {
+  id : int;
+  note : string option;
+  tags : string list;
+  retries : int; [@default 3]
+}
+[@@deriving make]
+```
+
+This generates:
+
+```ocaml
+val make_status : id:int -> ?note:string -> ?tags:string list -> ?retries:int -> unit -> status
+```
+
+so `make_status ~id:1 ()` builds `{ id = 1; note = None; tags = []; retries = 3 }`.
+Naming follows the usual convention: `type t` generates `make`, `type status`
+generates `make_status`.
+
+### make field mapping
+
+Each field becomes an argument, in declaration order:
+
+| field                          | argument                                              |
+|--------------------------------|-------------------------------------------------------|
+| `f : ty`                       | required labelled `~f`                                |
+| `f : ty option`                | optional `?f` (`None` when omitted)                   |
+| `f : ty list`                  | optional `?f` defaulting to `[]`                      |
+| `f : ty [@default e]`          | optional `?f` defaulting to `e`                       |
+| `f : ty [@main]`               | final positional (unlabelled) argument                |
+| `fs : a * b list [@split]`     | required `~f:a` plus optional `?fs:b list` (`[]`)     |
+
+A trailing `unit` argument is added when the record has optional arguments and
+no `[@main]` field (it lets the optionals be applied); a `[@main]` field closes
+the function instead; a record with neither gets no trailing unit
+(`make_pair ~first ~second`). The `[@default]`, `[@main]`, and `[@split]`
+attributes are also accepted in the namespaced form
+(`[@deriving.make.default]`, etc.).
+
+### make scope
+
+Records only; every other shape (variants, abstract, open, tuple/alias, and
+polymorphic-variant manifests) is rejected with a clear error. A mutually
+recursive group is handled leniently, matching native `ppx_deriving` (issue
+#272): `make` is generated for the record members and non-record members are
+skipped. Two notes on the semantics that differ from native: builtin
+option/list detection matches on the bare `Lident` only, so a
+`Stdlib.option`-typed field becomes a required argument rather than an optional
+one; and a `[@default]` expression is inlined directly, so it can capture an
+argument that shares an earlier field's name.
 
 ## Unsupported for now
 
