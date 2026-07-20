@@ -2,7 +2,7 @@
 opam-version: "2.0"
 synopsis: "Melange-compatible deriving plugins for OCaml"
 description:
-  "A Melange-compatible subset of ppx_deriving: eq, fold, iter, map, ord, and show."
+  "A Melange-compatible subset of ppx_deriving: eq, fold, iter, make, map, ord, and show."
 maintainer: [
   "Vitalii Shapoval <vytalych@gmail.com>" "Ahrefs <github@ahrefs.com>"
 ]

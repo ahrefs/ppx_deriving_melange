@@ -2,7 +2,7 @@
  (name ppx_deriving_melange)
  (public_name ppx_deriving_melange)
  (synopsis "Melange-compatible deriving plugins for OCaml")
- (modules common eq fold iter map ord show)
+ (modules common eq fold iter make map ord show)
  (preprocess
   (pps ppxlib.metaquot))
  (libraries ppxlib ppxlib.astlib)
