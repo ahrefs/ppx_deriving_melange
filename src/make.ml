@@ -8,56 +8,29 @@ open Common
 let deriver = "make"
 let make_name type_decl = mangle_type_decl ~prefix:"make" type_decl
 
-(* Attributes are declared in both the plain and namespaced spellings (as eq
-   does for [@equal]/[@deriving.eq.equal]) and on both the label-declaration
-   and core-type contexts, since a record-field attribute can attach at either
-   point. Lookups check the label contexts before the core-type contexts,
-   matching native's get_label_attribute order. *)
 let attr_default_label =
-  Attribute.declare "default" Attribute.Context.label_declaration Ast_pattern.(single_expr_payload __) Fun.id
-
-let attr_default_label_ns =
   Attribute.declare "deriving.make.default" Attribute.Context.label_declaration
     Ast_pattern.(single_expr_payload __)
     Fun.id
 
 let attr_default_core_type =
-  Attribute.declare "default" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
-
-let attr_default_core_type_ns =
   Attribute.declare "deriving.make.default" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
 
-let attr_main_label = Attribute.declare_flag "main" Attribute.Context.label_declaration
-let attr_main_label_ns = Attribute.declare_flag "deriving.make.main" Attribute.Context.label_declaration
-let attr_main_core_type = Attribute.declare_flag "main" Attribute.Context.core_type
-let attr_main_core_type_ns = Attribute.declare_flag "deriving.make.main" Attribute.Context.core_type
-let attr_split_label = Attribute.declare_flag "split" Attribute.Context.label_declaration
-let attr_split_label_ns = Attribute.declare_flag "deriving.make.split" Attribute.Context.label_declaration
-let attr_split_core_type = Attribute.declare_flag "split" Attribute.Context.core_type
-let attr_split_core_type_ns = Attribute.declare_flag "deriving.make.split" Attribute.Context.core_type
+let attr_main_label = Attribute.declare_flag "deriving.make.main" Attribute.Context.label_declaration
+let attr_main_core_type = Attribute.declare_flag "deriving.make.main" Attribute.Context.core_type
+let attr_split_label = Attribute.declare_flag "deriving.make.split" Attribute.Context.label_declaration
+let attr_split_core_type = Attribute.declare_flag "deriving.make.split" Attribute.Context.core_type
 
 let default_attribute field_decl =
   match Attribute.get attr_default_label field_decl with
   | Some _ as default_expr -> default_expr
-  | None ->
-  match Attribute.get attr_default_label_ns field_decl with
-  | Some _ as default_expr -> default_expr
-  | None ->
-  match Attribute.get attr_default_core_type field_decl.pld_type with
-  | Some _ as default_expr -> default_expr
-  | None -> Attribute.get attr_default_core_type_ns field_decl.pld_type
+  | None -> Attribute.get attr_default_core_type field_decl.pld_type
 
 let has_main field_decl =
-  Attribute.has_flag attr_main_label field_decl
-  || Attribute.has_flag attr_main_label_ns field_decl
-  || Attribute.has_flag attr_main_core_type field_decl.pld_type
-  || Attribute.has_flag attr_main_core_type_ns field_decl.pld_type
+  Attribute.has_flag attr_main_label field_decl || Attribute.has_flag attr_main_core_type field_decl.pld_type
 
 let has_split field_decl =
-  Attribute.has_flag attr_split_label field_decl
-  || Attribute.has_flag attr_split_label_ns field_decl
-  || Attribute.has_flag attr_split_core_type field_decl.pld_type
-  || Attribute.has_flag attr_split_core_type_ns field_decl.pld_type
+  Attribute.has_flag attr_split_label field_decl || Attribute.has_flag attr_split_core_type field_decl.pld_type
 
 let raise_split_error loc =
   Location.raise_errorf ~loc "deriving.make [@split] requires a field of type 'a * 'b list whose name ends in 's'"
