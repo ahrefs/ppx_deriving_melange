@@ -472,6 +472,42 @@ option/list detection matches on the bare `Lident` only, so a
 one; and a `[@default]` expression is inlined directly, so it can capture an
 argument that shares an earlier field's name.
 
+## Expression extensions
+
+`eq`, `ord`, and `show` are also available as expression extensions, so the
+generated logic can be used inline on any closed type, without declaring a
+type or a named function first:
+
+```ocaml
+List.sort [%ord: int * string] pairs
+
+assert_equal ~printer:[%show: (int * string) list] ~cmp:[%eq: (int * string) list] expected actual
+
+print_endline ([%show: int option list] values)
+```
+
+| Extension | Type |
+|---|---|
+| `[%eq: t]` | `t -> t -> bool` |
+| `[%ord: t]` | `t -> t -> int` |
+| `[%show: t]` | `t -> string` |
+
+Each is also accepted in the namespaced form (`[%derive.eq: t]`,
+`[%derive.ord: t]`, `[%derive.show: t]`), matching native `ppx_deriving`.
+Extensions compose exactly like payload types do, so `[%show: Foo.t]` uses
+`Foo.show`, `[%eq: Foo.t]` uses `Foo.equal`, and `[%ord: Foo.t]` uses
+`Foo.compare`.
+
+Matching native `ppx_deriving`, there is no `[%compare: ...]` (the comparison
+extension is `[%ord: ...]`; leaving `compare` unclaimed also avoids colliding
+with `ppx_compare`) and no `[%pp: ...]`.
+
+`[%show: t]` follows the same strategy as the generated `show` function: it
+builds the string directly, and falls back to
+`Stdlib.Format.asprintf "%a"` over `pp` only where a formatter is genuinely
+required (custom `[@printer]`s and applications of parameterized types such as
+`int Box.t`) — so inline use costs no more bundle size than a derived `show`.
+
 ## Unsupported for now
 
 - polymorphic variant row inheritance
@@ -485,7 +521,6 @@ future milestones:
 - standard containers: `ref`, `lazy_t`
 - type aliases whose target type is not otherwise supported
 - custom `[@nobuiltin]` handling
-- expression extension support, e.g. `[%eq: t]` / `[%show: t]`
 - `show`'s `[@polyprinter]` attribute
 
 ## Attribution

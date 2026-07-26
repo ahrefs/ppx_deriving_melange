@@ -510,6 +510,33 @@ module Fragile_match_regression = struct
     assert_bool_equal (equal_pv `A (`B 1)) false
 end
 
+module Expression_extension = struct
+  type t = {
+    id : int;
+    tags : string list;
+  }
+  [@@deriving eq]
+
+  let run ~assert_bool_equal =
+    (* The extension agrees with the derived function for a declared type... *)
+    let left = { id = 1; tags = [ "a" ] } in
+    let right = { id = 1; tags = [ "a" ] } in
+    assert_bool_equal ([%eq: t] left right) (equal left right);
+    assert_bool_equal ([%eq: t] left { right with id = 2 }) false;
+    (* ...and works inline on types that were never declared. *)
+    assert_bool_equal ([%eq: int list] [ 1; 2 ] [ 1; 2 ]) true;
+    assert_bool_equal ([%eq: int list] [ 1; 2 ] [ 1; 3 ]) false;
+    assert_bool_equal ([%eq: (int * string) option] (Some (1, "a")) (Some (1, "a"))) true;
+    assert_bool_equal ([%eq: (int * string) option] (Some (1, "a")) None) false;
+    (* Result types, the shape native tests explicitly. *)
+    let equal_outcome = [%eq: (string, int) result] in
+    assert_bool_equal (equal_outcome (Ok "a") (Ok "a")) true;
+    assert_bool_equal (equal_outcome (Ok "a") (Ok "b")) false;
+    assert_bool_equal (equal_outcome (Error 1) (Error 1)) true;
+    assert_bool_equal (equal_outcome (Ok "a") (Error 1)) false;
+    assert_bool_equal ([%derive.eq: int] 1 1) true
+end
+
 let all : Test_case.t list =
   [
     { name = "variant"; run = Variant.run };
@@ -540,4 +567,5 @@ let all : Test_case.t list =
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
     { name = "generic_application_alias"; run = Generic_application_alias.run };
     { name = "fragile_match_regression"; run = Fragile_match_regression.run };
+    { name = "expression_extension"; run = Expression_extension.run };
   ]

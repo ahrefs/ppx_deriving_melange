@@ -285,6 +285,33 @@ module Fragile_match_regression = struct
     assert_bool_equal (compare_pv `A (`B 1) < 0) true
 end
 
+module Expression_extension = struct
+  type t = {
+    rank : int;
+    label : string;
+  }
+  [@@deriving ord]
+
+  let run ~assert_bool_equal =
+    let first = { rank = 1; label = "a" } in
+    let second = { rank = 2; label = "a" } in
+    (* Agreement with the derived function... *)
+    assert_bool_equal ([%ord: t] first second = compare first second) true;
+    (* ...and the motivating inline use: sorting by an undeclared tuple type. *)
+    let sorted = List.sort [%ord: int * string] [ 2, "b"; 1, "c"; 1, "a" ] in
+    assert_bool_equal (sorted = [ 1, "a"; 1, "c"; 2, "b" ]) true;
+    assert_bool_equal ([%ord: int] 1 2 < 0) true;
+    assert_bool_equal ([%ord: int] 2 1 > 0) true;
+    assert_bool_equal ([%ord: string list] [ "a" ] [ "a" ] = 0) true;
+    (* Result types, the shape native tests explicitly: Ok < Error. *)
+    let compare_outcome = [%ord: (unit, unit) result] in
+    assert_bool_equal (compare_outcome (Ok ()) (Ok ()) = 0) true;
+    assert_bool_equal (compare_outcome (Error ()) (Error ()) = 0) true;
+    assert_bool_equal (compare_outcome (Ok ()) (Error ()) < 0) true;
+    assert_bool_equal (compare_outcome (Error ()) (Ok ()) > 0) true;
+    assert_bool_equal ([%derive.ord: int] 1 1 = 0) true
+end
+
 let all : Test_case.t list =
   [
     { name = "variant_ordering"; run = Variant_ordering.run };
@@ -307,4 +334,5 @@ let all : Test_case.t list =
     { name = "recursive_group_alias"; run = Recursive_group_alias.run };
     { name = "generic_application_alias"; run = Generic_application_alias.run };
     { name = "fragile_match_regression"; run = Fragile_match_regression.run };
+    { name = "expression_extension"; run = Expression_extension.run };
   ]
