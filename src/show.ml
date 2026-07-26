@@ -7,21 +7,15 @@ open Common
 
 let deriver = "show"
 
-let attr_printer = Attribute.declare "printer" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
-
-let attr_deriving_show_printer =
+let attr_printer =
   Attribute.declare "deriving.show.printer" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
 
 let attr_constructor_printer =
-  Attribute.declare "printer" Attribute.Context.constructor_declaration Ast_pattern.(single_expr_payload __) Fun.id
-
-let attr_deriving_show_constructor_printer =
   Attribute.declare "deriving.show.printer" Attribute.Context.constructor_declaration
     Ast_pattern.(single_expr_payload __)
     Fun.id
 
-let attr_opaque = Attribute.declare_flag "opaque" Attribute.Context.core_type
-let attr_deriving_show_opaque = Attribute.declare_flag "deriving.show.opaque" Attribute.Context.core_type
+let attr_opaque = Attribute.declare_flag "deriving.show.opaque" Attribute.Context.core_type
 
 let pp_name type_decl = mangle_type_decl ~prefix:"pp" type_decl
 let show_name type_decl = mangle_type_decl ~prefix:"show" type_decl
@@ -227,11 +221,7 @@ and pp_expr_of_core_type typ =
   match Attribute.get attr_printer typ with
   | Some printer_expr -> wrap_printer printer_expr
   | None ->
-  match Attribute.get attr_deriving_show_printer typ with
-  | Some printer_expr -> wrap_printer printer_expr
-  | None ->
-    if Attribute.has_flag attr_opaque typ || Attribute.has_flag attr_deriving_show_opaque typ then
-      [%expr fun fmt _value -> Stdlib.Format.pp_print_string fmt "<opaque>"]
+    if Attribute.has_flag attr_opaque typ then [%expr fun fmt _value -> Stdlib.Format.pp_print_string fmt "<opaque>"]
     else (
       match typ.ptyp_desc with
       | Ptyp_constr ({ txt = type_path; loc = type_path_loc }, type_args) ->
@@ -303,11 +293,7 @@ let record_payload_field_printer field_decl =
 let constructor_case ~with_path ~path constructor =
   let name = constructor.pcd_name.txt in
   let printed_name = expand_path ~with_path ~path name in
-  let custom_printer =
-    match Attribute.get attr_constructor_printer constructor with
-    | Some printer_expr -> Some printer_expr
-    | None -> Attribute.get attr_deriving_show_constructor_printer constructor
-  in
+  let custom_printer = Attribute.get attr_constructor_printer constructor in
   match custom_printer, constructor.pcd_args with
   | Some printer_expr, Pcstr_tuple payload_types ->
     (* Native applies the constructor printer to fmt and the payload packed as
@@ -448,11 +434,7 @@ let rec string_renderer_of_core_type typ =
   match Attribute.get attr_printer typ with
   | Some _custom_printer -> raise Formatter_required
   | None ->
-  match Attribute.get attr_deriving_show_printer typ with
-  | Some _custom_printer -> raise Formatter_required
-  | None ->
-    if Attribute.has_flag attr_opaque typ || Attribute.has_flag attr_deriving_show_opaque typ then
-      [%expr fun _value -> "<opaque>"]
+    if Attribute.has_flag attr_opaque typ then [%expr fun _value -> "<opaque>"]
     else (
       match typ.ptyp_desc with
       | Ptyp_constr ({ txt = type_path; loc = type_path_loc }, type_args) ->
@@ -532,12 +514,9 @@ let string_record_payload_field_renderer field_decl =
     ^ [%e string_renderer_of_core_type field_type] [%e Exp.ident (lid_of_string ("a_" ^ field_name))]]
 
 let string_constructor_case ~with_path ~path constructor =
-  (match
-     ( Attribute.get attr_constructor_printer constructor,
-       Attribute.get attr_deriving_show_constructor_printer constructor )
-   with
-  | None, None -> ()
-  | Some _custom_printer, _other_form | _other_form, Some _custom_printer -> raise Formatter_required);
+  (match Attribute.get attr_constructor_printer constructor with
+  | None -> ()
+  | Some _custom_printer -> raise Formatter_required);
   let name = constructor.pcd_name.txt in
   let printed_name = expand_path ~with_path ~path name in
   match constructor.pcd_args with
