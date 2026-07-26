@@ -7,9 +7,7 @@ open Common
 
 let deriver = "eq"
 
-let attr_equal = Attribute.declare "equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
-
-let attr_deriving_eq_equal =
+let attr_equal =
   Attribute.declare "deriving.eq.equal" Attribute.Context.core_type Ast_pattern.(single_expr_payload __) Fun.id
 
 let equal_name type_decl = mangle_type_decl ~prefix:"equal" type_decl
@@ -106,9 +104,6 @@ and equal_expr_of_core_type typ =
     Location.raise_errorf ~loc "deriving.eq doesn't support payload type %s" (string_of_core_type typ)
   in
   match Attribute.get attr_equal typ with
-  | Some equal_expr -> equal_expr
-  | None ->
-  match Attribute.get attr_deriving_eq_equal typ with
   | Some equal_expr -> equal_expr
   | None ->
   match typ.ptyp_desc with
