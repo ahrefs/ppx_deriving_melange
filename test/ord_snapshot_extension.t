@@ -79,7 +79,7 @@ Free type variables are rejected.
   File "input.ml", line 1, characters 21-30:
   1 | let unbound = [%ord: 'a option]
                            ^^^^^^^^^
-  Error: deriving.ord doesn't support free type variables in [%ord: ...]
+  Error: deriving.ord doesn't support free type variables ('a) in [%ord: ...]
   [1]
 
 [%compare: ...] is deliberately not registered (native has no such extension,

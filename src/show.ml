@@ -672,5 +672,4 @@ let derive_extension =
         let loc = typ.ptyp_loc in
         [%expr fun x -> Stdlib.Format.asprintf "%a" [%e pp_expr_of_core_type typ] x])
 
-let _derive_transformation =
-  Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]
+let () = Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]

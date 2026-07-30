@@ -142,7 +142,7 @@ Free type variables are rejected.
   File "input.ml", line 1, characters 22-29:
   1 | let unbound = [%show: 'a list]
                             ^^^^^^^
-  Error: deriving.show doesn't support free type variables in [%show: ...]
+  Error: deriving.show doesn't support free type variables ('a) in [%show: ...]
   [1]
 
 [%pp: ...] is deliberately not registered (native has no inline formatter

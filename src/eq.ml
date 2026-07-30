@@ -329,5 +329,4 @@ let derive_extension =
       reject_free_type_variables ~deriver typ;
       equal_expr_of_core_type typ)
 
-let _derive_transformation =
-  Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]
+let () = Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]

@@ -85,7 +85,7 @@ expression, so the type must be closed.
   File "input.ml", line 1, characters 20-27:
   1 | let unbound = [%eq: 'a list]
                           ^^^^^^^
-  Error: deriving.eq doesn't support free type variables in [%eq: ...]
+  Error: deriving.eq doesn't support free type variables ('a) in [%eq: ...]
   [1]
 
 Payload shapes the deriver rejects are rejected in the extension too.

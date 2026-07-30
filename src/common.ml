@@ -124,8 +124,9 @@ let free_type_variables typ =
   collector#core_type typ []
 
 let reject_free_type_variables ~deriver typ =
-  match free_type_variables typ with
+  match List.sort_uniq String.compare (free_type_variables typ) with
   | [] -> ()
-  | _first_free_variable :: _remaining_free_variables ->
-    Location.raise_errorf ~loc:typ.ptyp_loc "deriving.%s doesn't support free type variables in [%%%s: ...]" deriver
-      deriver
+  | _first_free_variable :: _remaining_free_variables as free_variables ->
+    let named = String.concat ", " (List.map (fun name -> "'" ^ name) free_variables) in
+    Location.raise_errorf ~loc:typ.ptyp_loc "deriving.%s doesn't support free type variables (%s) in [%%%s: ...]"
+      deriver named deriver
