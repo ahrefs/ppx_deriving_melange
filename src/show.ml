@@ -655,3 +655,21 @@ let sig_type_decl =
     List.concat (List.map sig_of_type type_decls))
 
 let deriving : Deriving.t = Deriving.add deriver ~str_type_decl:(str_type_decl ~deriver) ~sig_type_decl
+
+(* Unlike native — which always expands to Format.asprintf over [pp] — the
+   extension reuses the same dual strategy as the generated [show] function:
+   pure string building when the type allows it, falling back to a formatter
+   only where [Formatter_required] says one is genuinely needed. That keeps
+   [%show: t] as cheap for Melange bundles as calling a derived [show]. *)
+let derive_extension =
+  Extension.V3.declare "derive.show" Extension.Context.expression
+    Ast_pattern.(ptyp __)
+    (fun ~ctxt:_expansion_context typ ->
+      reject_free_type_variables ~deriver typ;
+      match string_renderer_of_core_type typ with
+      | string_renderer -> string_renderer
+      | exception Formatter_required ->
+        let loc = typ.ptyp_loc in
+        [%expr fun x -> Stdlib.Format.asprintf "%a" [%e pp_expr_of_core_type typ] x])
+
+let () = Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]

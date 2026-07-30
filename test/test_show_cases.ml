@@ -370,6 +370,36 @@ module Module_signature = struct
   let run ~assert_bool_equal = assert_bool_equal (String.equal (M.show M.A) "A") true
 end
 
+module Expression_extension = struct
+  module Box = struct
+    type 'a t = Box of 'a [@@deriving show]
+  end
+
+  type t = {
+    id : int;
+    name : string;
+  }
+  [@@deriving show { with_path = false }]
+
+  let run ~assert_bool_equal =
+    (* Agreement with the derived function for a declared type. *)
+    let value = { id = 1; name = "a" } in
+    assert_bool_equal ([%show: t] value = show value) true;
+    (* Pure string-building path: no formatter involved. *)
+    assert_bool_equal ([%show: int] 5 = "5") true;
+    assert_bool_equal ([%show: (int * string) option] (Some (1, "a")) = "(Some (1, \"a\"))") true;
+    assert_bool_equal ([%show: int list] [ 1; 2 ] = "[1; 2]") true;
+    assert_bool_equal ([%show: string option] None = "None") true;
+    (* Result types, the shape native tests explicitly. *)
+    assert_bool_equal ([%show: (int, bool) result] (Ok 100) = "(Ok 100)") true;
+    assert_bool_equal ([%show: (int, bool) result] (Error true) = "(Error true)") true;
+    (* Formatter fallback path: an application of a parameterized type. *)
+    assert_bool_equal
+      ([%show: int Box.t] (Box.Box 7) = Box.show (fun fmt x -> Format.fprintf fmt "%d" x) (Box.Box 7))
+      true;
+    assert_bool_equal ([%derive.show: int] 42 = "42") true
+end
+
 let all : Test_case.t list =
   [
     { name = "variant_printing"; run = Variant_printing.run };
@@ -401,4 +431,5 @@ let all : Test_case.t list =
     { name = "constructor_printer"; run = Constructor_printer.run };
     { name = "long_value_single_line"; run = Long_value_single_line.run };
     { name = "module_signature"; run = Module_signature.run };
+    { name = "expression_extension"; run = Expression_extension.run };
   ]

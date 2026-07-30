@@ -350,3 +350,12 @@ let sig_type_decl =
     List.concat (List.map sig_of_type type_decls))
 
 let deriving : Deriving.t = Deriving.add deriver ~str_type_decl:(str_type_decl ~deriver) ~sig_type_decl
+
+let derive_extension =
+  Extension.V3.declare "derive.ord" Extension.Context.expression
+    Ast_pattern.(ptyp __)
+    (fun ~ctxt:_expansion_context typ ->
+      reject_free_type_variables ~deriver typ;
+      compare_expr_of_core_type typ)
+
+let () = Driver.register_transformation deriver ~rules:[ Context_free.Rule.extension derive_extension ]
