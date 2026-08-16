@@ -1,9 +1,63 @@
 # ppx_deriving_melange
 
-`ppx_deriving_melange` is intended to be a Melange-compatible subset of
-`ppx_deriving`.
+`ppx_deriving_melange` is a Melange-compatible subset of `ppx_deriving`.
 
-Supported derivers: `eq`, `fold`, `iter`, `make`, `map`, `ord`, and `show`.
+| Deriver | Generates | What for |
+|---|---|---|
+| [`eq`](#eq) | `equal : t -> t -> bool` | structural equality |
+| [`ord`](#ord) | `compare : t -> t -> int` | ordering for `Map.Make`, `Set.Make`, `List.sort` |
+| [`iter`](#iter) | `iter : ('a -> unit) -> 'a t -> unit` | visit every value at a type parameter |
+| [`map`](#map) | `map : ('a -> 'b) -> 'a t -> 'b t` | transform every value at a type parameter |
+| [`fold`](#fold) | `fold : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b` | accumulate over values at a type parameter |
+| [`make`](#make) | `make : id:int -> ?note:string -> unit -> t` | smart constructor for a record |
+| [`show`](#show) | `show : t -> string` plus a Format-based `pp` | structural debug printer |
+
+`eq`, `ord`, and `show` are also available inline, as
+[expression extensions](#expression-extensions): `[%eq: t]`, `[%ord: t]`,
+`[%show: t]`.
+
+## Installation
+
+```
+opam install ppx_deriving_melange
+```
+
+Then add the ppx to the `preprocess` field of the library or executable that
+uses it:
+
+```
+(library
+ (name my_lib)
+ (modes melange)
+ (preprocess
+  (pps ppx_deriving_melange)))
+```
+
+## Usage
+
+Attach `[@@deriving <deriver>]` to a type declaration, in either a structure or
+a signature. Several derivers can be requested at once by separating their
+names with commas:
+
+```ocaml
+type t = {
+  id : int;
+  name : string;
+}
+[@@deriving eq, show]
+```
+
+A deriver that takes options accepts them as a record after its name:
+
+```ocaml
+type t = Red [@@deriving show { with_path = false }]
+```
+
+Generated names follow the `ppx_deriving` convention: a type named `t` gives
+unprefixed names (`equal`, `compare`, `show`), and any other type name is
+suffixed (`equal_status`, `compare_status`, `show_status`). A payload
+referring to `Foo.t` composes through `Foo.equal`, `Foo.compare`, `Foo.show`,
+and so on.
 
 ## eq
 
@@ -68,6 +122,58 @@ Foo.equal
 Custom equality can be provided on payload or field types with `[@equal ...]`.
 For compatibility with native `ppx_deriving.eq`, the namespaced form
 `[@deriving.eq.equal ...]` is also accepted.
+
+## ord
+
+`ord` generates a `compare` function — the same convention native
+`ppx_deriving.ord` uses, so the result drops straight into `Map.Make` /
+`Set.Make` and `List.sort`:
+
+```ocaml
+type t =
+  | Red
+  | Green
+  | Blue
+[@@deriving ord]
+```
+
+This generates:
+
+```ocaml
+val compare : t -> t -> int
+```
+
+Note the function is named `compare`, not `ord`: `type t` generates `compare`,
+`type status` generates `compare_status`, and a reference to `Foo.t` uses
+`Foo.compare`. Parameterized types take a comparison callback per type
+parameter, e.g. `val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int`.
+
+### ord semantics
+
+Comparison matches native `ppx_deriving.ord`:
+
+- variants and polymorphic variants are ordered by declaration order; within the
+  same constructor, payloads are compared lexicographically
+- records and tuples compare fields/elements lexicographically in declaration
+  order
+- `None < Some _`; `Ok _ < Error _`
+- lists compare element-by-element (a prefix is smaller); arrays compare by
+  length first, then elements
+- primitives use a typed `Stdlib.compare`
+
+### ord scope
+
+`ord` supports the same shapes as `eq` (variants with tuple and inline-record
+payloads, records, tuples, simple aliases, type parameters, generic type
+applications, recursive type groups, closed polymorphic variants, and `list`,
+`option`, `array`, `result`, and `unit`). Custom comparison can be provided on a
+payload or field type with `[@compare ...]`; for compatibility with native
+`ppx_deriving.ord`, the namespaced form `[@deriving.ord.compare ...]` is also
+accepted.
+
+As with `eq` and `iter`, `ref`, `lazy_t`, `nativeint`, functor-applied type
+paths, and polymorphic variant row inheritance are rejected with a clear error
+(native `ppx_deriving.ord` supports these, but they are out of scope here).
 
 ## iter
 
@@ -234,57 +340,63 @@ custom-function attribute. Functor-applied type paths (`Make(Arg).t`) and
 polymorphic variant row inheritance are rejected with a clear error when
 they are reached; monomorphic occurrences collapse to the passthrough first.
 
-## ord
+## make
 
-`ord` generates a `compare` function — the same convention native
-`ppx_deriving.ord` uses, so the result drops straight into `Map.Make` /
-`Set.Make` and `List.sort`:
+`make` generates a smart constructor for a record type — a function that takes
+each field as an argument and returns the record. Unlike the other derivers it
+does not traverse types; it is records-only.
 
 ```ocaml
-type t =
-  | Red
-  | Green
-  | Blue
-[@@deriving ord]
+type status = {
+  id : int;
+  note : string option;
+  tags : string list;
+  retries : int; [@default 3]
+}
+[@@deriving make]
 ```
 
 This generates:
 
 ```ocaml
-val compare : t -> t -> int
+val make_status : id:int -> ?note:string -> ?tags:string list -> ?retries:int -> unit -> status
 ```
 
-Note the function is named `compare`, not `ord`: `type t` generates `compare`,
-`type status` generates `compare_status`, and a reference to `Foo.t` uses
-`Foo.compare`. Parameterized types take a comparison callback per type
-parameter, e.g. `val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int`.
+so `make_status ~id:1 ()` builds `{ id = 1; note = None; tags = []; retries = 3 }`.
+Naming follows the usual convention: `type t` generates `make`, `type status`
+generates `make_status`.
 
-### ord semantics
+### make field mapping
 
-Comparison matches native `ppx_deriving.ord`:
+Each field becomes an argument, in declaration order:
 
-- variants and polymorphic variants are ordered by declaration order; within the
-  same constructor, payloads are compared lexicographically
-- records and tuples compare fields/elements lexicographically in declaration
-  order
-- `None < Some _`; `Ok _ < Error _`
-- lists compare element-by-element (a prefix is smaller); arrays compare by
-  length first, then elements
-- primitives use a typed `Stdlib.compare`
+| field                          | argument                                              |
+|--------------------------------|-------------------------------------------------------|
+| `f : ty`                       | required labelled `~f`                                |
+| `f : ty option`                | optional `?f` (`None` when omitted)                   |
+| `f : ty list`                  | optional `?f` defaulting to `[]`                      |
+| `f : ty [@default e]`          | optional `?f` defaulting to `e`                       |
+| `f : ty [@main]`               | final positional (unlabelled) argument                |
+| `fs : a * b list [@split]`     | required `~f:a` plus optional `?fs:b list` (`[]`)     |
 
-### ord scope
+A trailing `unit` argument is added when the record has optional arguments and
+no `[@main]` field (it lets the optionals be applied); a `[@main]` field closes
+the function instead; a record with neither gets no trailing unit
+(`make_pair ~first ~second`). The `[@default]`, `[@main]`, and `[@split]`
+attributes are also accepted in the namespaced form
+(`[@deriving.make.default]`, etc.).
 
-`ord` supports the same shapes as `eq` (variants with tuple and inline-record
-payloads, records, tuples, simple aliases, type parameters, generic type
-applications, recursive type groups, closed polymorphic variants, and `list`,
-`option`, `array`, `result`, and `unit`). Custom comparison can be provided on a
-payload or field type with `[@compare ...]`; for compatibility with native
-`ppx_deriving.ord`, the namespaced form `[@deriving.ord.compare ...]` is also
-accepted.
+### make scope
 
-As with `eq` and `iter`, `ref`, `lazy_t`, `nativeint`, functor-applied type
-paths, and polymorphic variant row inheritance are rejected with a clear error
-(native `ppx_deriving.ord` supports these, but they are out of scope here).
+Records only; every other shape (variants, abstract, open, tuple/alias, and
+polymorphic-variant manifests) is rejected with a clear error. A mutually
+recursive group is handled leniently, matching native `ppx_deriving`
+([issue #272](https://github.com/ocaml-ppx/ppx_deriving/issues/272)): `make`
+is generated for the record members and non-record members are skipped. Two notes on the semantics that differ from native: builtin
+option/list detection matches on the bare `Lident` only, so a
+`Stdlib.option`-typed field becomes a required argument rather than an optional
+one; and a `[@default]` expression is inlined directly, so it can capture an
+argument that shares an earlier field's name.
 
 ## show
 
@@ -413,64 +525,6 @@ As with the other derivers, `ref`, `lazy_t`, `nativeint`, functor-applied type
 paths, and polymorphic variant row inheritance are out of scope (native
 `ppx_deriving.show` supports these). `[@polyprinter]` and `[@nobuiltin]` are
 not supported either.
-
-## make
-
-`make` generates a smart constructor for a record type — a function that takes
-each field as an argument and returns the record. Unlike the other derivers it
-does not traverse types; it is records-only.
-
-```ocaml
-type status = {
-  id : int;
-  note : string option;
-  tags : string list;
-  retries : int; [@default 3]
-}
-[@@deriving make]
-```
-
-This generates:
-
-```ocaml
-val make_status : id:int -> ?note:string -> ?tags:string list -> ?retries:int -> unit -> status
-```
-
-so `make_status ~id:1 ()` builds `{ id = 1; note = None; tags = []; retries = 3 }`.
-Naming follows the usual convention: `type t` generates `make`, `type status`
-generates `make_status`.
-
-### make field mapping
-
-Each field becomes an argument, in declaration order:
-
-| field                          | argument                                              |
-|--------------------------------|-------------------------------------------------------|
-| `f : ty`                       | required labelled `~f`                                |
-| `f : ty option`                | optional `?f` (`None` when omitted)                   |
-| `f : ty list`                  | optional `?f` defaulting to `[]`                      |
-| `f : ty [@default e]`          | optional `?f` defaulting to `e`                       |
-| `f : ty [@main]`               | final positional (unlabelled) argument                |
-| `fs : a * b list [@split]`     | required `~f:a` plus optional `?fs:b list` (`[]`)     |
-
-A trailing `unit` argument is added when the record has optional arguments and
-no `[@main]` field (it lets the optionals be applied); a `[@main]` field closes
-the function instead; a record with neither gets no trailing unit
-(`make_pair ~first ~second`). The `[@default]`, `[@main]`, and `[@split]`
-attributes are also accepted in the namespaced form
-(`[@deriving.make.default]`, etc.).
-
-### make scope
-
-Records only; every other shape (variants, abstract, open, tuple/alias, and
-polymorphic-variant manifests) is rejected with a clear error. A mutually
-recursive group is handled leniently, matching native `ppx_deriving` (issue
-#272): `make` is generated for the record members and non-record members are
-skipped. Two notes on the semantics that differ from native: builtin
-option/list detection matches on the bare `Lident` only, so a
-`Stdlib.option`-typed field becomes a required argument rather than an optional
-one; and a `[@default]` expression is inlined directly, so it can capture an
-argument that shares an earlier field's name.
 
 ## Expression extensions
 

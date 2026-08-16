@@ -1,6 +1,7 @@
 A mutually recursive group where only one member is a record: make is
 generated for the record and the non-record sibling is silently skipped
-(matching native ppx_deriving, issue #272).
+(matching native ppx_deriving, issue
+https://github.com/ocaml-ppx/ppx_deriving/issues/272).
 
   $ cat > input.ml <<'EOF'
   > type principle = {

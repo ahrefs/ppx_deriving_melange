@@ -104,8 +104,9 @@ module Naming = struct
 end
 
 module Recursive_group = struct
-  (* Native #272: make generated only for the record member; the alias
-     sibling is skipped. *)
+  (* Native ppx_deriving issue #272
+     (https://github.com/ocaml-ppx/ppx_deriving/issues/272): make is generated
+     only for the record member; the alias sibling is skipped. *)
   type principle = {
     prt1 : int;
     prt2 : secondary;
