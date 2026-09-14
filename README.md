@@ -554,7 +554,8 @@ Extensions compose exactly like payload types do, so `[%show: Foo.t]` uses
 
 Matching native `ppx_deriving`, there is no `[%compare: ...]` (the comparison
 extension is `[%ord: ...]`; leaving `compare` unclaimed also avoids colliding
-with `ppx_compare`) and no `[%pp: ...]`.
+with `ppx_compare`). Native 6.2.0 added `[%pp: ...]`, which this package does
+not provide yet.
 
 `[%show: t]` follows the same strategy as the generated `show` function: it
 builds the string directly, and falls back to
