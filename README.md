@@ -562,6 +562,16 @@ builds the string directly, and falls back to
 required (custom `[@printer]`s and applications of parameterized types such as
 `int Box.t`) — so inline use costs no more bundle size than a derived `show`.
 
+The type must be closed: `[%eq: 'a list]` is rejected with a clear error,
+because the `poly_a` callback a type parameter needs is not in scope at an
+expression. Native instead expands to a reference to that unbound callback,
+which fails later with a confusing "Unbound value poly_a".
+
+A type wildcard is also rejected. Native treats `_` as an ignore-this
+placeholder (`[%eq: _]` is always `true`, `[%ord: _]` is `0`, `[%show: _]` is
+`"_"`); this package rejects `_` wherever a type is traversed, and the
+extensions inherit that, so use a concrete type instead.
+
 ## Unsupported for now
 
 - polymorphic variant row inheritance

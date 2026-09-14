@@ -1,3 +1,11 @@
+# Unreleased
+
+- add expression extensions `[%eq: t]`, `[%ord: t]`, and `[%show: t]`, plus the
+  namespaced `[%derive.eq: t]`, `[%derive.ord: t]`, and `[%derive.show: t]`
+  forms
+- fix bare-attribute registration conflicts in the `eq`, `ord`, and `show`
+  derivers
+
 # 0.2.0
 
 - add `fold` deriver
