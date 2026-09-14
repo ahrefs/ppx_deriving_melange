@@ -481,6 +481,17 @@ type t =
 (* show First = "first", show (Second 42) = "second: 42" *)
 ```
 
+It is accepted on a polymorphic variant tag too, where the printer receives
+`fmt` and `()` for a constant tag or the payload value otherwise:
+
+```ocaml
+type t =
+  [ `First [@printer fun fmt () -> Format.pp_print_string fmt "first"]
+  | `Second of int [@printer fun fmt i -> fprintf fmt "second: %d" i]
+  ]
+[@@deriving show]
+```
+
 `[@opaque]` (or `[@deriving.show.opaque]`) prints `<opaque>` without
 traversing the value:
 

@@ -15,6 +15,9 @@ let attr_constructor_printer =
     Ast_pattern.(single_expr_payload __)
     Fun.id
 
+let attr_rtag_printer =
+  Attribute.declare "deriving.show.printer" Attribute.Context.rtag Ast_pattern.(single_expr_payload __) Fun.id
+
 let attr_opaque = Attribute.declare_flag "deriving.show.opaque" Attribute.Context.core_type
 
 let pp_name type_decl = mangle_type_decl ~prefix:"pp" type_decl
@@ -194,10 +197,16 @@ and raise_unsupported_polyvariant_inherit ~loc =
   Location.raise_errorf ~loc "deriving.show doesn't support inherited polymorphic variant rows"
 
 and polyvariant_case field =
-  match field.prf_desc with
-  | Rtag (label, true, []) ->
+  match Attribute.get attr_rtag_printer field, field.prf_desc with
+  (* Native applies a tag printer to fmt and the payload: () for a constant
+     tag, the payload value otherwise. *)
+  | Some printer_expr, Rtag (label, true, []) ->
+    Exp.case (Pat.variant label.txt None) [%expr [%e wrap_printer printer_expr] fmt ()]
+  | Some printer_expr, Rtag (label, false, [ _payload_type ]) ->
+    Exp.case (Pat.variant label.txt (Some (pvar "payload"))) [%expr [%e wrap_printer printer_expr] fmt payload]
+  | None, Rtag (label, true, []) ->
     Exp.case (Pat.variant label.txt None) [%expr Stdlib.Format.pp_print_string fmt [%e estring ~loc ("`" ^ label.txt)]]
-  | Rtag (label, false, [ payload_type ]) ->
+  | None, Rtag (label, false, [ payload_type ]) ->
     let payload_printer = pp_expr_of_core_type payload_type in
     Exp.case
       (Pat.variant label.txt (Some (pvar "payload")))
@@ -205,9 +214,9 @@ and polyvariant_case field =
         Stdlib.Format.fprintf fmt [%e estring ~loc ("`" ^ label.txt ^ " (@[<hov>")];
         [%e payload_printer] fmt payload;
         Stdlib.Format.fprintf fmt "@])"]
-  | Rtag (_label, is_constant, payload_types) ->
+  | _printer, Rtag (_label, is_constant, payload_types) ->
     raise_unsupported_polyvariant_rtag ~loc:field.prf_loc ~is_constant ~payload_types
-  | Rinherit _row_type -> raise_unsupported_polyvariant_inherit ~loc:field.prf_loc
+  | _printer, Rinherit _row_type -> raise_unsupported_polyvariant_inherit ~loc:field.prf_loc
 
 and polyvariant_printer fields =
   let cases = List.map polyvariant_case fields in
@@ -491,6 +500,9 @@ and string_tuple_renderer tuple_types =
   Exp.fun_ Nolabel None pattern (concat_rendered ~before:"(" ~separator:", " ~after:")" rendered_parts)
 
 and string_polyvariant_case field =
+  (match Attribute.get attr_rtag_printer field with
+  | None -> ()
+  | Some _custom_printer -> raise Formatter_required);
   match field.prf_desc with
   | Rtag (label, true, []) -> Exp.case (Pat.variant label.txt None) (estring ~loc ("`" ^ label.txt))
   | Rtag (label, false, [ payload_type ]) ->
