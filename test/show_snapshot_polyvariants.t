@@ -65,3 +65,53 @@ ppx_deriving.show supports them; out of scope here, like eq/iter/ord).
           ^^^^
   Error: deriving.show doesn't support inherited polymorphic variant rows
   [1]
+
+A [@printer] on a polymorphic variant tag, matching native ppx_deriving.show:
+the printer receives the formatter and () for a constant tag or the payload
+otherwise, and forces [show] onto the formatter path so both agree.
+
+  $ cat > input.ml <<'EOF'
+  > type t =
+  >   [ `First [@printer fun fmt () -> Stdlib.Format.pp_print_string fmt "first"]
+  >   | `Second of int [@printer fun fmt i -> fprintf fmt "second: %d" i]
+  >   | `Third of string
+  >   ]
+  > [@@deriving show { with_path = false }]
+  > EOF
+  $ ./ppx_deriving_melange_standalone.exe -impl input.ml -o output.ml
+  $ ocamlformat --enable-outside-detected-project --impl output.ml
+  type t =
+    [ `First [@printer fun fmt () -> Stdlib.Format.pp_print_string fmt "first"]
+    | `Second of int [@printer fun fmt i -> fprintf fmt "second: %d" i]
+    | `Third of string ]
+  [@@deriving show { with_path = false }]
+  
+  include struct
+    let _ = fun (_ : t) -> ()
+  
+    let rec pp : Stdlib.Format.formatter -> t -> unit =
+     fun fmt ->
+      fun x ->
+       match x with
+       | `First ->
+           ((let fprintf = Stdlib.Format.fprintf in
+             fun fmt () -> Stdlib.Format.pp_print_string fmt "first")
+           [@ocaml.warning "-26"])
+             fmt ()
+       | `Second payload ->
+           ((let fprintf = Stdlib.Format.fprintf in
+             fun fmt i -> fprintf fmt "second: %d" i)
+           [@ocaml.warning "-26"])
+             fmt payload
+       | `Third payload ->
+           Stdlib.Format.fprintf fmt "`Third (@[<hov>";
+           (fun fmt x -> Stdlib.Format.fprintf fmt "%S" x) fmt payload;
+           Stdlib.Format.fprintf fmt "@])"
+    [@@ocaml.warning "-39"]
+  
+    and show : t -> string = fun x -> Stdlib.Format.asprintf "%a" pp x
+    [@@ocaml.warning "-39"]
+  
+    let _ = pp
+    and _ = show
+  end [@@ocaml.doc "@inline"] [@@merlin.hide]

@@ -340,6 +340,26 @@ module Constructor_printer = struct
     assert_bool_equal (String.equal (show (Fifth { x = 1; y = "a" })) "fifth: 1 a") true
 end
 
+module Polyvariant_printer = struct
+  type t =
+    [ `First [@printer fun fmt () -> Format.pp_print_string fmt "first"]
+    | `Second of int [@printer fun fmt i -> fprintf fmt "second: %d" i]
+    | `Third
+    | `Fourth of string
+    ]
+  [@@deriving show { with_path = false }]
+
+  let run ~assert_bool_equal =
+    assert_bool_equal (String.equal (show `First) "first") true;
+    assert_bool_equal (String.equal (show (`Second 42)) "second: 42") true;
+    assert_bool_equal (String.equal (show `Third) "`Third") true;
+    assert_bool_equal (String.equal (show (`Fourth "a")) {|`Fourth ("a")|}) true;
+    (* [pp] and [show] must agree: the tag printer forces both onto the
+       formatter path. *)
+    assert_bool_equal (String.equal (Format.asprintf "%a" pp `First) (show `First)) true;
+    assert_bool_equal (String.equal (Format.asprintf "%a" pp (`Second 42)) (show (`Second 42))) true
+end
+
 module Long_value_single_line = struct
   (* Intentional divergence from native ppx_deriving.show: [show] builds the
      string directly (so Melange bundles don't need Format), and values longer
@@ -397,7 +417,9 @@ module Expression_extension = struct
     assert_bool_equal
       ([%show: int Box.t] (Box.Box 7) = Box.show (fun fmt x -> Format.fprintf fmt "%d" x) (Box.Box 7))
       true;
-    assert_bool_equal ([%derive.show: int] 42 = "42") true
+    assert_bool_equal ([%derive.show: int] 42 = "42") true;
+    (* A tag printer inside an extension takes the same formatter fallback. *)
+    assert_bool_equal ([%show: [ `A [@printer fun fmt () -> Format.pp_print_string fmt "a"] ]] `A = "a") true
 end
 
 let all : Test_case.t list =
@@ -429,6 +451,7 @@ let all : Test_case.t list =
     { name = "stdlib_module_shadowing"; run = Stdlib_module_shadowing.run };
     { name = "re_export_path"; run = Re_export_path.run };
     { name = "constructor_printer"; run = Constructor_printer.run };
+    { name = "polyvariant_printer"; run = Polyvariant_printer.run };
     { name = "long_value_single_line"; run = Long_value_single_line.run };
     { name = "module_signature"; run = Module_signature.run };
     { name = "expression_extension"; run = Expression_extension.run };

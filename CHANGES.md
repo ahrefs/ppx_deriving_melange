@@ -5,6 +5,8 @@
   forms
 - fix bare-attribute registration conflicts in the `eq`, `ord`, and `show`
   derivers
+- support `[@printer]` on polymorphic variant tags in the `show` deriver,
+  matching native `ppx_deriving` 6.2.0
 
 # 0.2.0
 
